@@ -16,6 +16,7 @@
 package org.flywaydb.core.internal.util;
 
 import org.flywaydb.core.api.FlywayException;
+import org.flywaydb.core.internal.util.scanner.Scanner;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -48,21 +49,39 @@ public class ClassUtils {
     public static synchronized <T> T instantiate(String className, ClassLoader classLoader) throws Exception {
         return (T) Class.forName(className, true, classLoader).newInstance();
     }
+    
+    /**
+     * Creates a new instance of a class found by the given scanner
+     *
+     * @param className   The fully qualified name of the class to instantiate.
+     * @param scanner	  The Scanner which returned the class name
+     * @param <T>         The type of the new instance.
+     * @return The new instance.
+     * @throws Exception Thrown when the instantiation failed.
+     */
+    @SuppressWarnings({"unchecked"})
+    // Must be synchronized for the Maven Parallel Junit runner to work
+    public static synchronized <T> T instantiate(String className, Scanner scanner) throws Exception {
+    	Class<?> clazz = scanner.loadClass(className);
+    	return (T) clazz.newInstance();
+    }
+    
+    
 
     /**
      * Instantiate all these classes.
      *
      * @param classes     A fully qualified class names to instantiate.
-     * @param classLoader The ClassLoader to use.
+     * @param scanner The Scanner that returned the list of classes
      * @param <T>         The common type for all classes.
      * @return The list of instances.
      */
-    public static <T> List<T> instantiateAll(String[] classes, ClassLoader classLoader) {
+    public static <T> List<T> instantiateAll(String[] classes, Scanner scanner) {
         List<T> clazzes = new ArrayList<T>();
         for (String clazz : classes) {
             if (StringUtils.hasLength(clazz)) {
                 try {
-                    clazzes.add(ClassUtils.<T>instantiate(clazz, classLoader));
+                    clazzes.add(ClassUtils.<T>instantiate(clazz, scanner));
                 } catch (Exception e) {
                     throw new FlywayException("Unable to instantiate class: " + clazz, e);
                 }

@@ -16,6 +16,16 @@
 package org.flywaydb.core;
 
 
+import java.sql.Connection;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
+import javax.sql.DataSource;
+
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.MigrationInfoService;
 import org.flywaydb.core.api.MigrationVersion;
@@ -35,7 +45,12 @@ import org.flywaydb.core.internal.info.MigrationInfoServiceImpl;
 import org.flywaydb.core.internal.metadatatable.MetaDataTable;
 import org.flywaydb.core.internal.metadatatable.MetaDataTableImpl;
 import org.flywaydb.core.internal.resolver.CompositeMigrationResolver;
+import org.flywaydb.core.internal.resolver.jdbc.JdbcMigrationResolver;
+import org.flywaydb.core.internal.resolver.spring.SpringJdbcMigrationResolver;
+import org.flywaydb.core.internal.resolver.sql.SqlMigrationResolver;
 import org.flywaydb.core.internal.util.ClassUtils;
+import org.flywaydb.core.internal.util.FeatureDetector;
+import org.flywaydb.core.internal.util.Location;
 import org.flywaydb.core.internal.util.Locations;
 import org.flywaydb.core.internal.util.PlaceholderReplacer;
 import org.flywaydb.core.internal.util.StringUtils;
@@ -44,14 +59,8 @@ import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
 import org.flywaydb.core.internal.util.jdbc.JdbcUtils;
 import org.flywaydb.core.internal.util.logging.Log;
 import org.flywaydb.core.internal.util.logging.LogFactory;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import org.flywaydb.core.internal.util.scanner.DefaultScanner;
+import org.flywaydb.core.internal.util.scanner.Scanner;
 
 /**
  * This is the centre point of Flyway, and for most users, the only class they will ever have to deal with.
@@ -60,7 +69,16 @@ import java.util.Properties;
  * </p>
  */
 public class Flyway {
-    private static final Log LOG = LogFactory.getLog(Flyway.class);
+	
+    public static final String FLYWAY_PASSWORD_PROPERTY = "flyway.password";
+
+    public static final String FLYWAY_USER_PROPERTY = "flyway.user";
+
+    public static final String FLYWAY_URL_PROPERTY = "flyway.url";
+
+	public static final String FLYWAY_DRIVER_PROPERTY = "flyway.driver";
+
+	private static final Log LOG = LogFactory.getLog(Flyway.class);
 
     /**
      * Property name prefix for placeholders that are configured through properties.
@@ -240,6 +258,8 @@ public class Flyway {
      * The ClassLoader to use for resolving migrations on the classpath. (default: Thread.currentThread().getContextClassLoader() )
      */
     private ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+    
+    private Scanner scanner = new DefaultScanner(getClass().getClassLoader());
 
     /**
      * Whether the database connection info has already been printed in the logs.
@@ -548,11 +568,11 @@ public class Flyway {
     /**
      * Retrieves the ClassLoader to use for resolving migrations on the classpath.
      *
-     * @return The ClassLoader to use for resolving migrations on the classpath.
-     * (default: Thread.currentThread().getContextClassLoader() )
+     * @return The ClassLoader used for resolvning JDBC drivers by class name and by the DefaultScanner 
+     * to retrieve migrations
      */
-    public ClassLoader getClassLoader() {
-        return classLoader;
+    public ClassLoader getClassLoader() throws IllegalStateException {
+    	return classLoader;
     }
 
     /**
@@ -779,17 +799,27 @@ public class Flyway {
      * @param initSqls The (optional) sql statements to execute to initialize a connection immediately after obtaining it.
      */
     public void setDataSource(String url, String user, String password, String... initSqls) {
-        this.dataSource = new DriverDataSource(classLoader, null, url, user, password, initSqls);
+		this.dataSource = new DriverDataSource(classLoader, (String) null, url, user, password, initSqls);
         createdDataSource = true;
     }
 
     /**
-     * Sets the ClassLoader to use for resolving migrations on the classpath.
+     * Sets the ClassLoader and reset the Scanner implementation to the DefaultScanner.
      *
      * @param classLoader The ClassLoader to use for resolving migrations on the classpath. (default: Thread.currentThread().getContextClassLoader() )
      */
     public void setClassLoader(ClassLoader classLoader) {
-        this.classLoader = classLoader;
+    	this.classLoader = classLoader;
+    	this.scanner = new DefaultScanner(classLoader);
+    }
+
+    /**
+     * Set the Scanner implementation to use when scanning classes, leave the default in most cases!
+     * 
+     * @param scanner the Scanner implementation used to scan for migrations and load classes
+     */
+    public void setScanner(Scanner scanner) {
+    	this.scanner = scanner;
     }
 
     /**
@@ -948,7 +978,7 @@ public class Flyway {
     @Deprecated
     public void setCallbacks(String... callbacks) {
         LOG.warn("Flyway.setCallbacks(String...) is deprecated and will be removed in Flyway 4.0. Use setCallbacksAsClassNames(String...) instead.");
-        List<FlywayCallback> callbackList = ClassUtils.instantiateAll(callbacks, classLoader);
+        List<FlywayCallback> callbackList = ClassUtils.instantiateAll(callbacks, scanner);
         this.callbacks = callbackList.toArray(new FlywayCallback[callbacks.length]);
     }
 
@@ -958,7 +988,7 @@ public class Flyway {
      * @param callbacks The fully qualified class names of the callbacks for lifecycle notifications. (default: none)
      */
     public void setCallbacksAsClassNames(String... callbacks) {
-        List<FlywayCallback> callbackList = ClassUtils.instantiateAll(callbacks, classLoader);
+        List<FlywayCallback> callbackList = ClassUtils.instantiateAll(callbacks, scanner);
         this.callbacks = callbackList.toArray(new FlywayCallback[callbacks.length]);
     }
 
@@ -980,7 +1010,7 @@ public class Flyway {
     @Deprecated
     public void setResolvers(String... resolvers) {
         LOG.warn("Flyway.setResolvers(String...) is deprecated and will be removed in Flyway 4.0. Use setResolversAsClassNames(String...) instead.");
-        List<MigrationResolver> resolverList = ClassUtils.instantiateAll(resolvers, classLoader);
+        List<MigrationResolver> resolverList = ClassUtils.instantiateAll(resolvers, scanner);
         this.resolvers = resolverList.toArray(new MigrationResolver[resolvers.length]);
     }
 
@@ -990,7 +1020,7 @@ public class Flyway {
      * @param resolvers The fully qualified class names of the custom MigrationResolvers to be used in addition to the built-in ones for resolving Migrations to apply. (default: empty list)
      */
     public void setResolversAsClassNames(String... resolvers) {
-        List<MigrationResolver> resolverList = ClassUtils.instantiateAll(resolvers, classLoader);
+        List<MigrationResolver> resolverList = ClassUtils.instantiateAll(resolvers, scanner);
         this.resolvers = resolverList.toArray(new MigrationResolver[resolvers.length]);
     }
 
@@ -1004,7 +1034,8 @@ public class Flyway {
      */
     public int migrate() throws FlywayException {
         return execute(new Command<Integer>() {
-            public Integer execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
+            @Override
+			public Integer execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
                 MetaDataTable metaDataTable = new MetaDataTableImpl(dbSupport, schemas[0].getTable(table));
 
                 MigrationResolver migrationResolver = createMigrationResolver(dbSupport);
@@ -1074,7 +1105,8 @@ public class Flyway {
      */
     public void validate() throws FlywayException {
         execute(new Command<Void>() {
-            public Void execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
+            @Override
+			public Void execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
                 MetaDataTable metaDataTable = new MetaDataTableImpl(dbSupport, schemas[0].getTable(table));
                 MigrationResolver migrationResolver = createMigrationResolver(dbSupport);
 
@@ -1119,7 +1151,8 @@ public class Flyway {
      */
     public void clean() {
         execute(new Command<Void>() {
-            public Void execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
+            @Override
+			public Void execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
                 MetaDataTableImpl metaDataTable =
                         new MetaDataTableImpl(dbSupport, schemas[0].getTable(table));
                 new DbClean(connectionMetaDataTable, metaDataTable, schemas, callbacks).clean();
@@ -1138,7 +1171,8 @@ public class Flyway {
      */
     public MigrationInfoService info() {
         return execute(new Command<MigrationInfoService>() {
-            public MigrationInfoService execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
+            @Override
+			public MigrationInfoService execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
                 for (FlywayCallback callback : getCallbacks()) {
                     callback.beforeInfo(connectionUserObjects);
                 }
@@ -1180,7 +1214,8 @@ public class Flyway {
      */
     public void baseline() throws FlywayException {
         execute(new Command<Void>() {
-            public Void execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
+            @Override
+			public Void execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
                 MetaDataTable metaDataTable = new MetaDataTableImpl(dbSupport, schemas[0].getTable(table));
                 new DbSchemas(connectionMetaDataTable, schemas, metaDataTable).create();
                 new DbBaseline(connectionMetaDataTable, metaDataTable, baselineVersion, baselineDescription, callbacks).baseline();
@@ -1201,7 +1236,8 @@ public class Flyway {
      */
     public void repair() throws FlywayException {
         execute(new Command<Void>() {
-            public Void execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
+            @Override
+			public Void execute(Connection connectionMetaDataTable, Connection connectionUserObjects, DbSupport dbSupport, Schema[] schemas) {
                 MigrationResolver migrationResolver = createMigrationResolver(dbSupport);
                 MetaDataTable metaDataTable = new MetaDataTableImpl(dbSupport, schemas[0].getTable(table));
                 new DbRepair(dbSupport, connectionMetaDataTable, migrationResolver, metaDataTable, callbacks).repair();
@@ -1217,9 +1253,21 @@ public class Flyway {
      * @return A new, fully configured, MigrationResolver instance.
      */
     private MigrationResolver createMigrationResolver(DbSupport dbSupport) {
-        return new CompositeMigrationResolver(dbSupport, classLoader, locations,
-                encoding, sqlMigrationPrefix, sqlMigrationSeparator, sqlMigrationSuffix, createPlaceholderReplacer(),
-                resolvers);
+    	
+    	PlaceholderReplacer placeholderReplacer = createPlaceholderReplacer();
+    	Collection<MigrationResolver> resolvers = new ArrayList<MigrationResolver>();
+    	
+        for (Location location : locations.getLocations()) {
+            resolvers.add(new SqlMigrationResolver(dbSupport, scanner, location, placeholderReplacer,
+                    encoding, sqlMigrationPrefix, sqlMigrationSeparator, sqlMigrationSuffix));
+            resolvers.add(new JdbcMigrationResolver(scanner, location));
+
+            if (new FeatureDetector(classLoader).isSpringJdbcAvailable()) {
+            	resolvers.add(new SpringJdbcMigrationResolver(scanner, location));
+            }
+        }
+        
+		return new CompositeMigrationResolver(resolvers);
     }
 
     /**
@@ -1243,10 +1291,10 @@ public class Flyway {
      */
     @SuppressWarnings("ConstantConditions")
     public void configure(Properties properties) {
-        String driverProp = properties.getProperty("flyway.driver");
-        String urlProp = properties.getProperty("flyway.url");
-        String userProp = properties.getProperty("flyway.user");
-        String passwordProp = properties.getProperty("flyway.password");
+        String driverProp = properties.getProperty(FLYWAY_DRIVER_PROPERTY);
+        String urlProp = properties.getProperty(FLYWAY_URL_PROPERTY);
+        String userProp = properties.getProperty(FLYWAY_USER_PROPERTY);
+        String passwordProp = properties.getProperty(FLYWAY_PASSWORD_PROPERTY);
 
         if (StringUtils.hasText(urlProp)) {
             setDataSource(new DriverDataSource(classLoader, driverProp, urlProp, userProp, passwordProp));
@@ -1370,7 +1418,7 @@ public class Flyway {
     /*private -> testing*/ <T> T execute(Command<T> command) {
         T result;
 
-        VersionPrinter.printVersion(classLoader);
+        VersionPrinter.printVersion(Flyway.class.getClassLoader());
 
         Connection connectionMetaDataTable = null;
         Connection connectionUserObjects = null;
@@ -1410,7 +1458,7 @@ public class Flyway {
             }
 
             if (callbacks.length == 0) {
-                setCallbacks(new SqlScriptFlywayCallback(dbSupport, classLoader, locations, createPlaceholderReplacer(),
+                setCallbacks(new SqlScriptFlywayCallback(dbSupport, scanner, locations, createPlaceholderReplacer(),
                         encoding, sqlMigrationSuffix));
                 callbackAutoAdded = true;
             }
@@ -1431,7 +1479,7 @@ public class Flyway {
         return result;
     }
 
-    /**
+	/**
      * A Flyway command that can be executed.
      *
      * @param <T> The result type of the command.

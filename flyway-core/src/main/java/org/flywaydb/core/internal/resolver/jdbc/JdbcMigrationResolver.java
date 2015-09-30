@@ -15,6 +15,10 @@
  */
 package org.flywaydb.core.internal.resolver.jdbc;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.MigrationType;
 import org.flywaydb.core.api.MigrationVersion;
@@ -32,10 +36,6 @@ import org.flywaydb.core.internal.util.Pair;
 import org.flywaydb.core.internal.util.StringUtils;
 import org.flywaydb.core.internal.util.scanner.Scanner;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 /**
  * Migration resolver for Jdbc migrations. The classes must have a name like V1 or V1_1_3 or V1__Description
  * or V1_1_3__Description.
@@ -47,19 +47,19 @@ public class JdbcMigrationResolver implements MigrationResolver {
     private final Location location;
 
     /**
-     * The ClassLoader to use.
+     * The Scanner to use
      */
-    private ClassLoader classLoader;
+    private Scanner scanner;
 
     /**
      * Creates a new instance.
      *
      * @param location    The base package on the classpath where to migrations are located.
-     * @param classLoader The ClassLoader for loading migrations on the classpath.
+     * @param scanner The Scanner used for finding and loading migrations
      */
-    public JdbcMigrationResolver(ClassLoader classLoader, Location location) {
+    public JdbcMigrationResolver(Scanner scanner, Location location) {
         this.location = location;
-        this.classLoader = classLoader;
+        this.scanner = scanner;
     }
 
     public List<ResolvedMigration> resolveMigrations() {
@@ -70,9 +70,9 @@ public class JdbcMigrationResolver implements MigrationResolver {
         }
 
         try {
-            Class<?>[] classes = new Scanner(classLoader).scanForClasses(location, JdbcMigration.class);
+            Class<?>[] classes = scanner.scanForClasses(location, JdbcMigration.class);
             for (Class<?> clazz : classes) {
-                JdbcMigration jdbcMigration = ClassUtils.instantiate(clazz.getName(), classLoader);
+                JdbcMigration jdbcMigration = ClassUtils.instantiate(clazz.getName(), scanner);
 
                 ResolvedMigrationImpl migrationInfo = extractMigrationInfo(jdbcMigration);
                 migrationInfo.setPhysicalLocation(ClassUtils.getLocationOnDisk(clazz));

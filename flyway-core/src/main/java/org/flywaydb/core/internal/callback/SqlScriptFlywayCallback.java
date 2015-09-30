@@ -28,6 +28,7 @@ import org.flywaydb.core.internal.util.logging.Log;
 import org.flywaydb.core.internal.util.logging.LogFactory;
 import org.flywaydb.core.internal.util.scanner.Resource;
 import org.flywaydb.core.internal.util.scanner.Scanner;
+import org.flywaydb.core.internal.util.scanner.DefaultScanner;
 
 import java.sql.Connection;
 import java.util.HashMap;
@@ -51,9 +52,8 @@ public class SqlScriptFlywayCallback implements FlywayCallback {
      * @param encoding            The encoding of Sql migrations.
      * @param sqlMigrationSuffix  The suffix for sql migrations
      */
-    public SqlScriptFlywayCallback(DbSupport dbSupport, ClassLoader classLoader, Locations locations,
+    public SqlScriptFlywayCallback(DbSupport dbSupport, Scanner scanner, Locations locations,
                                    PlaceholderReplacer placeholderReplacer, String encoding, String sqlMigrationSuffix) {
-        Scanner scanner = new Scanner(classLoader);
 
         scripts.put("beforeClean", null);
         scripts.put("afterClean", null);
