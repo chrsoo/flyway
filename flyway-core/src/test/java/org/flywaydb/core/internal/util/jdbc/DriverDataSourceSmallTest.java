@@ -1,12 +1,12 @@
 /**
  * Copyright 2010-2015 Axel Fontaine
- * <p/>
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,7 +31,7 @@ public class DriverDataSourceSmallTest {
         String password = "superS3cr3t";
 
         try {
-            new DriverDataSource(Thread.currentThread().getContextClassLoader(), null, url, user, password).getConnection();
+            new DriverDataSource(Thread.currentThread().getContextClassLoader(), (String) null, url, user, password).getConnection();
         } catch (FlywayException e) {
             assertTrue(e.getCause() instanceof SQLException);
             assertTrue(e.getMessage().contains(url));
@@ -43,6 +43,6 @@ public class DriverDataSourceSmallTest {
     @Test
     public void nullInitSqls() throws Exception {
         //Used to fail with NPE
-        new DriverDataSource(Thread.currentThread().getContextClassLoader(), null, "jdbc:h2:mem:abc", "axel", "superS3cr3t", null).getConnection().close();
+        new DriverDataSource(Thread.currentThread().getContextClassLoader(), (String) null, "jdbc:h2:mem:abc", "axel", "superS3cr3t", null).getConnection().close();
     }
 }

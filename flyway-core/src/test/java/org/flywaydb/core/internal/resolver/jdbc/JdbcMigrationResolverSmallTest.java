@@ -15,33 +15,44 @@
  */
 package org.flywaydb.core.internal.resolver.jdbc;
 
-import org.flywaydb.core.api.FlywayException;
-import org.flywaydb.core.api.resolver.ResolvedMigration;
-import org.flywaydb.core.internal.resolver.jdbc.dummy.V2__InterfaceBasedMigration;
-import org.flywaydb.core.internal.resolver.jdbc.dummy.Version3dot5;
-import org.flywaydb.core.internal.util.Location;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import org.flywaydb.core.api.FlywayException;
+import org.flywaydb.core.api.resolver.ResolvedMigration;
+import org.flywaydb.core.internal.resolver.jdbc.dummy.V2__InterfaceBasedMigration;
+import org.flywaydb.core.internal.resolver.jdbc.dummy.Version3dot5;
+import org.flywaydb.core.internal.util.Location;
+import org.flywaydb.core.internal.util.scanner.DefaultScanner;
+import org.flywaydb.core.internal.util.scanner.Scanner;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Test for JdbcMigrationResolver.
  */
 public class JdbcMigrationResolverSmallTest {
+	
+	private Scanner scanner;
+	
+	@Before
+	public void setup() {
+		scanner = new DefaultScanner(Thread.currentThread().getContextClassLoader());
+	}
+	
     @Test(expected = FlywayException.class)
     public void broken() {
-        new JdbcMigrationResolver(Thread.currentThread().getContextClassLoader(), new Location("org/flywaydb/core/internal/resolver/jdbc/error")).resolveMigrations();
+        new JdbcMigrationResolver(scanner, new Location("org/flywaydb/core/internal/resolver/jdbc/error")).resolveMigrations();
     }
 
     @Test
     public void resolveMigrations() {
         JdbcMigrationResolver jdbcMigrationResolver =
-                new JdbcMigrationResolver(Thread.currentThread().getContextClassLoader(), new Location("org/flywaydb/core/internal/resolver/jdbc/dummy"));
+                new JdbcMigrationResolver(scanner, new Location("org/flywaydb/core/internal/resolver/jdbc/dummy"));
         Collection<ResolvedMigration> migrations = jdbcMigrationResolver.resolveMigrations();
 
         assertEquals(3, migrations.size());

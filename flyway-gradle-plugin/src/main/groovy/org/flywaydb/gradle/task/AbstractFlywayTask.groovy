@@ -82,6 +82,7 @@ abstract class AbstractFlywayTask extends DefaultTask {
     def abstract run(Flyway flyway)
 
     /** Creates a new, configured flyway instance */
+//    @groovy.transform.CompileStatic
     protected def createFlyway() {
         def flyway = new Flyway()
         flyway.setDataSource(new DriverDataSource(Thread.currentThread().getContextClassLoader(), prop("driver"), prop("url"), prop("user"), prop("password")))

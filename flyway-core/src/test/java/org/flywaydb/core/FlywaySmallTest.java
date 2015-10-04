@@ -15,18 +15,21 @@
  */
 package org.flywaydb.core;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+
+import java.sql.Connection;
+import java.util.Properties;
+
+import javax.sql.DataSource;
+
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.internal.dbsupport.DbSupport;
 import org.flywaydb.core.internal.dbsupport.Schema;
 import org.flywaydb.core.internal.resolver.MyCustomMigrationResolver;
 import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
 import org.junit.Test;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.util.Properties;
-
-import static org.junit.Assert.*;
 
 /**
  * Test for the main Flyway class.
@@ -132,7 +135,7 @@ public class FlywaySmallTest {
 
     @Test
     public void configureWithExistingDataSource() {
-        DataSource dataSource = new DriverDataSource(Thread.currentThread().getContextClassLoader(), null, "jdbc:h2:mem:flyway_test;DB_CLOSE_DELAY=-1", "sa", "");
+        DataSource dataSource = new DriverDataSource(Thread.currentThread().getContextClassLoader(), (String) null, "jdbc:h2:mem:flyway_test;DB_CLOSE_DELAY=-1", "sa", "");
 
         Properties properties = new Properties();
 
@@ -145,7 +148,7 @@ public class FlywaySmallTest {
 
     @Test
     public void configureWithPartialDbConfigInProperties() {
-        DataSource dataSource = new DriverDataSource(Thread.currentThread().getContextClassLoader(), null, "jdbc:h2:mem:flyway_test;DB_CLOSE_DELAY=-1", "sa", "");
+        DataSource dataSource = new DriverDataSource(Thread.currentThread().getContextClassLoader(), (String) null, "jdbc:h2:mem:flyway_test;DB_CLOSE_DELAY=-1", "sa", "");
 
         Properties properties = new Properties();
         properties.setProperty("flyway.user", "dummy_user");

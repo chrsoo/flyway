@@ -15,10 +15,7 @@
  */
 package org.flywaydb.core.internal.resolver.sql;
 
-import org.flywaydb.core.api.resolver.ResolvedMigration;
-import org.flywaydb.core.internal.util.Location;
-import org.flywaydb.core.internal.util.PlaceholderReplacer;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.net.URLDecoder;
@@ -26,12 +23,26 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import org.flywaydb.core.api.resolver.ResolvedMigration;
+import org.flywaydb.core.internal.util.Location;
+import org.flywaydb.core.internal.util.PlaceholderReplacer;
+import org.flywaydb.core.internal.util.scanner.DefaultScanner;
+import org.flywaydb.core.internal.util.scanner.Scanner;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Medium test for SqlMigrationResolver.
  */
 public class SqlMigrationResolverMediumTest {
+	
+	
+	private Scanner scanner;
+	
+	@Before
+	public void setup() {
+		scanner = new DefaultScanner(Thread.currentThread().getContextClassLoader());
+	}
 
     @Test
     public void resolveMigrations() throws Exception {
@@ -39,7 +50,7 @@ public class SqlMigrationResolverMediumTest {
         String path = URLDecoder.decode(getClass().getClassLoader().getResource("migration/subdir").getPath(), "UTF-8");
 
         SqlMigrationResolver sqlMigrationResolver =
-                new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
+                new SqlMigrationResolver(null, scanner,
                         new Location("filesystem:" + new File(path).getPath()), PlaceholderReplacer.NO_PLACEHOLDERS,
                         "UTF-8", "V", "__", ".sql");
         Collection<ResolvedMigration> migrations = sqlMigrationResolver.resolveMigrations();

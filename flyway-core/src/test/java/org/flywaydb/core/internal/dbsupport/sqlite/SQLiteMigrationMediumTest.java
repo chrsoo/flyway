@@ -37,7 +37,7 @@ import static org.junit.Assert.assertTrue;
 public class SQLiteMigrationMediumTest extends MigrationTestCase {
     @Override
     protected DataSource createDataSource(Properties customProperties) {
-        return new DriverDataSource(Thread.currentThread().getContextClassLoader(), null, "jdbc:sqlite::memory:", "", "");
+        return new DriverDataSource(Thread.currentThread().getContextClassLoader(), (String) null, "jdbc:sqlite::memory:", "", "");
     }
 
     @Override

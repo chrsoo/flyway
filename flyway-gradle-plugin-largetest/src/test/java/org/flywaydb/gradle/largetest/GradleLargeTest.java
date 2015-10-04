@@ -15,22 +15,23 @@
  */
 package org.flywaydb.gradle.largetest;
 
-import org.junit.Test;
-import org.flywaydb.core.internal.util.FileCopyUtils;
-import org.w3c.dom.Document;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathFactory;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathFactory;
+
+import org.flywaydb.core.internal.util.FileCopyUtils;
+import org.junit.Test;
+import org.w3c.dom.Document;
 
 /**
  * Large Test for the Flyway Gradle Plugin.
@@ -81,7 +82,7 @@ public class GradleLargeTest {
         args.add(installDir + "/install/gradlew" + extension);
         args.add("-PflywayVersion=" + flywayVersion);
         args.add("--info");
-        //args.add("--stacktrace");
+        args.add("--stacktrace");
         args.add("-b");
         args.add(installDir + "/tests/" + dir + "/build.gradle");
         args.addAll(Arrays.asList(extraArgs));

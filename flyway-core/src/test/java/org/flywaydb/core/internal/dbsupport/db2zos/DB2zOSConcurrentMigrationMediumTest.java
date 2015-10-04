@@ -15,13 +15,14 @@
  */
 package org.flywaydb.core.internal.dbsupport.db2zos;
 
-import org.flywaydb.core.DbCategory;
-import org.flywaydb.core.migration.ConcurrentMigrationTestCase;
-import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
-import org.junit.experimental.categories.Category;
+import java.util.Properties;
 
 import javax.sql.DataSource;
-import java.util.Properties;
+
+import org.flywaydb.core.DbCategory;
+import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
+import org.flywaydb.core.migration.ConcurrentMigrationTestCase;
+import org.junit.experimental.categories.Category;
 
 @Category(DbCategory.DB2zOS.class)
 public class DB2zOSConcurrentMigrationMediumTest extends ConcurrentMigrationTestCase {
@@ -32,6 +33,6 @@ public class DB2zOSConcurrentMigrationMediumTest extends ConcurrentMigrationTest
 		String password = customProperties.getProperty("db2.password", "passord");
 		String url = customProperties.getProperty("db2.url", "jdbc:db2://host:port/schemaname");
 
-		return new DriverDataSource(Thread.currentThread().getContextClassLoader(),null, url, user, password);
+		return new DriverDataSource(Thread.currentThread().getContextClassLoader(), (String) null, url, user, password);
 	}
 }

@@ -103,8 +103,30 @@ public class DriverDataSource implements DataSource {
 	 */
 	public DriverDataSource(ClassLoader classLoader, String driverClass, String url, String user, String password,
 			String... initSqls) throws FlywayException {
-		this(classLoader, url, user, password, initSqls);
-		this.driver = loadDriver(driverClass);
+
+		// Ideally the code shared between the two public constructors should be put in a 
+		// common private constructor but this makes the gradle-plugin fail as Groovy
+		// surprisingly does not respect private modifiers, cf
+		//
+		// 		https://issues.apache.org/jira/browse/GROOVY-1875
+		//
+		// this(classLoader, url, user, password, initSqls);
+		
+		validateURL(url);
+		
+		this.classLoader = classLoader;
+		this.url = url;
+		this.user = user;
+		this.password = password;
+
+		if (initSqls == null) {
+			initSqls = new String[0];
+		}
+
+		this.initSqls = initSqls;
+		
+		driver = loadDriver(classLoader, driverClass, url);
+		
 	}
 
     /**
@@ -129,23 +151,9 @@ public class DriverDataSource implements DataSource {
 	 */
 	public DriverDataSource(ClassLoader classLoader, Driver driver, String url, String user, String password,
 			String... initSqls) throws FlywayException {
-		this(classLoader, url, user, password, initSqls);
-		this.driver = driver;
-	}
-
-	/**
-	 * Internal constructor for setting all properties except the JDBC driver.
-	 */
-	private DriverDataSource(ClassLoader classLoader, String url, String user, String password, String... initSqls)
-			throws FlywayException {
-
-		if (!StringUtils.hasText(url)) {
-			throw new FlywayException("Missing required JDBC URL. Unable to create DataSource!");
-		}
-		if (!url.toLowerCase().startsWith("jdbc:")) {
-			throw new FlywayException("Invalid JDBC URL (should start with jdbc:) : " + url);
-		}
-
+		
+		validateURL(url);
+		
 		this.classLoader = classLoader;
 		this.url = url;
 		this.user = user;
@@ -156,10 +164,33 @@ public class DriverDataSource implements DataSource {
 		}
 
 		this.initSqls = initSqls;
+
+		if(driver == null) {
+			throw new IllegalArgumentException("JDBC Driver must not be null!");
+		}
+		
+		this.driver = driver;
+		
 	}
 
-	private Driver loadDriver(String driverClass) {
+	/**
+	 * Internal constructor for setting all properties except the JDBC driver.
+	 */
+	private void validateURL(String url)
+			throws FlywayException {
 
+		if (!StringUtils.hasText(url)) {
+			throw new FlywayException("Missing required JDBC URL. Unable to create DataSource!");
+		}
+		if (!url.toLowerCase().startsWith("jdbc:")) {
+			throw new FlywayException("Invalid JDBC URL (should start with jdbc:) : " + url);
+		}
+
+	}
+	
+	private Driver loadDriver(ClassLoader classLoader, String driverClass, String url) {
+		Driver driver;
+		
 		if (!StringUtils.hasLength(driverClass)) {
 			driverClass = detectDriverForUrl(url);
 			if (!StringUtils.hasLength(driverClass)) {
@@ -167,7 +198,6 @@ public class DriverDataSource implements DataSource {
 			}
 		}
 
-		Driver driver;
 		try {
 			driver = ClassUtils.instantiate(driverClass, classLoader);
 		} catch (Exception e) {
@@ -182,8 +212,8 @@ public class DriverDataSource implements DataSource {
 				throw new FlywayException("Unable to instantiate JDBC driver: " + driverClass, e);
 			}
 		}
+		
 		return driver;
-
 	}
 
 	/**

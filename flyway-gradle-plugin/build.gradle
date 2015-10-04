@@ -16,6 +16,7 @@ dependencies {
     compile "${group}:flyway-core:${version}"
     compile gradleApi()
     compile localGroovy()
+    // compile 'org.codehaus.groovy:groovy-all:2.0.0'
     testCompile 'junit:junit:4.11'
     testCompile 'org.hsqldb:hsqldb:2.3.2'
 }

@@ -15,18 +15,14 @@
  */
 package org.flywaydb.core.migration;
 
-import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.*;
-import org.flywaydb.core.api.resolver.ResolvedMigration;
-import org.flywaydb.core.internal.dbsupport.*;
-import org.flywaydb.core.internal.resolver.sql.SqlMigrationResolver;
-import org.flywaydb.core.internal.util.Location;
-import org.flywaydb.core.internal.util.PlaceholderReplacer;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import javax.sql.DataSource;
 import java.io.File;
 import java.io.FileInputStream;
 import java.sql.Connection;
@@ -36,7 +32,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.junit.Assert.*;
+import javax.sql.DataSource;
+
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.FlywayException;
+import org.flywaydb.core.api.MigrationInfo;
+import org.flywaydb.core.api.MigrationState;
+import org.flywaydb.core.api.MigrationType;
+import org.flywaydb.core.api.MigrationVersion;
+import org.flywaydb.core.api.resolver.ResolvedMigration;
+import org.flywaydb.core.internal.dbsupport.DbSupport;
+import org.flywaydb.core.internal.dbsupport.DbSupportFactory;
+import org.flywaydb.core.internal.dbsupport.FlywaySqlScriptException;
+import org.flywaydb.core.internal.dbsupport.JdbcTemplate;
+import org.flywaydb.core.internal.dbsupport.Schema;
+import org.flywaydb.core.internal.resolver.sql.SqlMigrationResolver;
+import org.flywaydb.core.internal.util.Location;
+import org.flywaydb.core.internal.util.PlaceholderReplacer;
+import org.flywaydb.core.internal.util.scanner.DefaultScanner;
+import org.flywaydb.core.internal.util.scanner.Scanner;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Test to demonstrate the migration functionality.
@@ -52,6 +69,7 @@ public abstract class MigrationTestCase {
     protected DataSource dataSource;
     private Connection connection;
     protected DbSupport dbSupport;
+    protected Scanner scanner;
 
     protected JdbcTemplate jdbcTemplate;
     protected Flyway flyway;
@@ -68,7 +86,7 @@ public abstract class MigrationTestCase {
         connection = dataSource.getConnection();
         dbSupport = DbSupportFactory.createDbSupport(connection, false);
         jdbcTemplate = dbSupport.getJdbcTemplate();
-
+        scanner = new DefaultScanner(Thread.currentThread().getContextClassLoader());
 		configureFlyway();
 		flyway.clean();
 	}
@@ -77,6 +95,7 @@ public abstract class MigrationTestCase {
         flyway = new Flyway();
         flyway.setDataSource(dataSource);
         flyway.setValidateOnMigrate(true);
+        flyway.setScanner(scanner);
     }
 
     /**
@@ -191,7 +210,7 @@ public abstract class MigrationTestCase {
      */
     private void assertChecksum(MigrationInfo migrationInfo) {
         SqlMigrationResolver sqlMigrationResolver = new SqlMigrationResolver(
-                dbSupport, Thread.currentThread().getContextClassLoader(),
+                dbSupport, scanner,
                 new Location(BASEDIR),
                 PlaceholderReplacer.NO_PLACEHOLDERS,
                 "UTF-8",

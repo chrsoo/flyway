@@ -15,16 +15,17 @@
  */
 package org.flywaydb.core.internal.dbsupport.db2;
 
-import org.flywaydb.core.DbCategory;
-import org.flywaydb.core.migration.MigrationTestCase;
-import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import static org.junit.Assert.assertEquals;
 
-import javax.sql.DataSource;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
+import javax.sql.DataSource;
+
+import org.flywaydb.core.DbCategory;
+import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
+import org.flywaydb.core.migration.MigrationTestCase;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Test to demonstrate the migration functionality using DB2.
@@ -39,7 +40,7 @@ public class DB2MigrationMediumTest extends MigrationTestCase {
         String password = customProperties.getProperty("db2.password", "flyway");
         String url = customProperties.getProperty("db2.url", "jdbc:db2://localhost:50000/flyway");
 
-        return new DriverDataSource(Thread.currentThread().getContextClassLoader(), null, url, user, password);
+        return new DriverDataSource(Thread.currentThread().getContextClassLoader(), (String) null, url, user, password);
     }
 
     @Override

@@ -15,21 +15,8 @@
  */
 package org.flywaydb.core.internal.dbsupport.postgresql;
 
-import org.flywaydb.core.DbCategory;
-import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.FlywayException;
-import org.flywaydb.core.api.MigrationType;
-import org.flywaydb.core.api.MigrationVersion;
-import org.flywaydb.core.api.resolver.MigrationExecutor;
-import org.flywaydb.core.api.resolver.MigrationResolver;
-import org.flywaydb.core.api.resolver.ResolvedMigration;
-import org.flywaydb.core.migration.MigrationTestCase;
-import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
-import org.flywaydb.core.internal.util.jdbc.JdbcUtils;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import static org.junit.Assert.assertEquals;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -38,7 +25,21 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
+import javax.sql.DataSource;
+
+import org.flywaydb.core.DbCategory;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.FlywayException;
+import org.flywaydb.core.api.MigrationType;
+import org.flywaydb.core.api.MigrationVersion;
+import org.flywaydb.core.api.resolver.MigrationExecutor;
+import org.flywaydb.core.api.resolver.MigrationResolver;
+import org.flywaydb.core.api.resolver.ResolvedMigration;
+import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
+import org.flywaydb.core.internal.util.jdbc.JdbcUtils;
+import org.flywaydb.core.migration.MigrationTestCase;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Test to demonstrate the migration functionality using PostgreSQL.
@@ -52,7 +53,7 @@ public class PostgreSQLMigrationMediumTest extends MigrationTestCase {
         String password = customProperties.getProperty("postgresql.password", "flyway");
         String url = customProperties.getProperty("postgresql.url", "jdbc:postgresql://localhost/flyway_db");
 
-        return new DriverDataSource(Thread.currentThread().getContextClassLoader(), null, url, user, password);
+        return new DriverDataSource(Thread.currentThread().getContextClassLoader(), (String) null, url, user, password);
     }
 
     @Override
@@ -338,7 +339,7 @@ public class PostgreSQLMigrationMediumTest extends MigrationTestCase {
         Flyway flyway1 = new Flyway();
         DriverDataSource driverDataSource = (DriverDataSource) dataSource;
         flyway1.setDataSource(new DriverDataSource(Thread.currentThread().getContextClassLoader(),
-                null, driverDataSource.getUrl(), driverDataSource.getUser(), driverDataSource.getPassword()) {
+                (String) null, driverDataSource.getUrl(), driverDataSource.getUser(), driverDataSource.getPassword()) {
             @Override
             public Connection getConnection() throws SQLException {
                 Connection connection = super.getConnection();

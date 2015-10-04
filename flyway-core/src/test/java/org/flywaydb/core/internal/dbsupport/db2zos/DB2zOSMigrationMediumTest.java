@@ -15,21 +15,22 @@
  */
 package org.flywaydb.core.internal.dbsupport.db2zos;
 
-import org.flywaydb.core.DbCategory;
-import org.flywaydb.core.api.MigrationVersion;
-import org.flywaydb.core.internal.dbsupport.Schema;
-import org.flywaydb.core.migration.MigrationTestCase;
-import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import static org.junit.Assert.assertEquals;
 
-import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
+import javax.sql.DataSource;
+
+import org.flywaydb.core.DbCategory;
+import org.flywaydb.core.api.MigrationVersion;
+import org.flywaydb.core.internal.dbsupport.Schema;
+import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
+import org.flywaydb.core.migration.MigrationTestCase;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 @Category(DbCategory.DB2zOS.class)
 public class DB2zOSMigrationMediumTest extends MigrationTestCase {
@@ -56,7 +57,7 @@ public class DB2zOSMigrationMediumTest extends MigrationTestCase {
 		String password = customProperties.getProperty("db2.password", "password");
 		String url = customProperties.getProperty("db2.url", "jdbc:db2://host:port/schemaname");
 
-		return new DriverDataSource(Thread.currentThread().getContextClassLoader(),null, url, user, password);
+		return new DriverDataSource(Thread.currentThread().getContextClassLoader(), (String) null, url, user, password);
 	}
 
 

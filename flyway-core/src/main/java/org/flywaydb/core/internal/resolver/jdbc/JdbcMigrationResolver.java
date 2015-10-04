@@ -34,6 +34,7 @@ import org.flywaydb.core.internal.util.ClassUtils;
 import org.flywaydb.core.internal.util.Location;
 import org.flywaydb.core.internal.util.Pair;
 import org.flywaydb.core.internal.util.StringUtils;
+import org.flywaydb.core.internal.util.scanner.DefaultScanner;
 import org.flywaydb.core.internal.util.scanner.Scanner;
 
 /**
@@ -51,6 +52,19 @@ public class JdbcMigrationResolver implements MigrationResolver {
      */
     private Scanner scanner;
 
+    /**
+     * Creates a new instance.
+     *
+     * @param location    The base package on the classpath where to migrations are located.
+     * @param classLoader The ClassLoader for loading migrations on the classpath.
+     * 
+     * @deprecated use {@link #JdbcMigrationResolver(Scanner, Location)} instead!
+     */
+    public JdbcMigrationResolver(ClassLoader classLoader, Location location) {
+        this.location = location;
+        this.scanner = new DefaultScanner(classLoader);
+    }
+    
     /**
      * Creates a new instance.
      *
