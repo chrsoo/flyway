@@ -183,6 +183,7 @@
             	<artifactId>org.osgi.compendium</artifactId>
             	<version>${version.osgi}</version>
             	<scope>provided</scope>
+				<optional>true</optional>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>
@@ -375,7 +376,7 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-    
+
     <build>
         <extensions>
             <extension>
