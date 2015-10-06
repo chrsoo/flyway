@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.flywaydb.commandline;
+package org.flywaydb.core.internal.util.logging.console;
 
 import org.junit.After;
 import org.junit.Before;
@@ -51,6 +51,7 @@ public class ConsoleLogTest {
         verify(mockedErr).println("ERROR: F00b4r");
     }
 
+    @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
     @Test
     public void errorAndStackTraceGoesToSystemErr() throws Exception {
         final Exception mockedException = mock(Exception.class);

@@ -49,13 +49,13 @@ import org.osgi.service.jdbc.DataSourceFactory;
  * PID {@value #FLYWAY_FACTORY_PID}.
  */
 public class FlywayConfigurationFactory implements ManagedServiceFactory, FlywayFactory {
-	
+
 	private static final Log LOG = LogFactory.getLog(FlywayConfigurationFactory.class);
-	
+
 	public static final String FLYWAY_FACTORY_PID = "org.flywaydb.datasource";
-	
+
 	private static final String FLYWAY_PROPERTY_PREFIX = "flyway.";
-	
+
 	/**
 	 * <p>
 	 * The {@value #FLYWAY_DRIVER_NAME_PROPERTY} property is used in the Flyway
@@ -81,9 +81,9 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	public FlywayConfigurationFactory(BundleContext context) {
 		this.context = context;
 	}
-	
+
 	// -- ManagedServiceFactory
-	
+
 	@Override
 	public String getName() {
 		return "Flyway Configuration Managed Service Factory";
@@ -92,9 +92,9 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	@Override
 	@SuppressWarnings("rawtypes")
 	public void updated(String pid, Dictionary managedServiceConfig) throws ConfigurationException {
-		
+
 		LOG.debug("Updating Flyway configuration for pid '" + pid + "'");
-		
+
 		String name = getFlywayName(pid);
 		LOG.info("Found Flyway configuration for data source '" + name + "'");
 
@@ -210,7 +210,7 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	}
 
 	static String getConfigValue(Properties config, String key) {
-		String value = (String) config.get(key);		
+		String value = (String) config.get(key);
 		return value == null
 				? null
 				: value.trim();
@@ -218,19 +218,20 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 
 	/**
 	 * Create a Flyway DriverDataSource instance optionally looking up the JDBC driver
-	 * using the OSGI Compendium DataSourceFactory's 
+	 * using the OSGI Compendium DataSourceFactory's
 	 */
 	private DataSource createFlywayDataSource(Properties config) {
-		
+
 		String url = getConfigValue(config, Flyway.FLYWAY_URL_PROPERTY);
 		String user = getConfigValue(config, Flyway.FLYWAY_USER_PROPERTY);
 		String password = getConfigValue(config, Flyway.FLYWAY_PASSWORD_PROPERTY);
 
 		// FIXME add support for initSql's
 		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+		Properties properties = getJdbcProperties(config);
 		try {
-			Driver driver = loadDriver(config);
-			return new DriverDataSource(classLoader, driver, url, user, password);
+			Driver driver = loadDriver(config, properties);
+			return new DriverDataSource(classLoader, driver, url, user, password, properties);
 		} catch (ConfigurationException e1) {
 			LOG.warn(e1.getMessage());
 			LOG.warn("Falling back to default classloading mechanism in DriverDataSource");
@@ -246,10 +247,9 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 
 	}
 
-	private Driver loadDriver(Properties config) throws ConfigurationException {
-		
+	private Driver loadDriver(Properties config, Properties properties) throws ConfigurationException {
+
 		ServiceReference serviceReference = lookupDataSourceFactory(config);
-		Properties properties = getJdbcProperties(config);
 		try {
 			DataSourceFactory dataSourceFactory = (DataSourceFactory) context.getService(serviceReference);
 			return dataSourceFactory.createDriver(properties);
@@ -301,7 +301,7 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	 * Specifically the <code>service.factoryPid</code> property and all
 	 * properties prefixed with {@value #FLYWAY_PROPERTY_PREFIX} and are
 	 * removed.
-	 * 
+	 *
 	 * @return a new Properties instance containing only JDBC configuration
 	 *         properties.
 	 */

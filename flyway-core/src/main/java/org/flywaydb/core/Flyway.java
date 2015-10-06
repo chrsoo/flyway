@@ -726,6 +726,9 @@ public class Flyway {
      * @param placeholderPrefix The prefix of every placeholder. (default: ${ )
      */
     public void setPlaceholderPrefix(String placeholderPrefix) {
+        if (!StringUtils.hasLength(placeholderPrefix)) {
+            throw new FlywayException("placeholderPrefix cannot be empty!");
+        }
         this.placeholderPrefix = placeholderPrefix;
     }
 
@@ -735,6 +738,9 @@ public class Flyway {
      * @param placeholderSuffix The suffix of every placeholder. (default: } )
      */
     public void setPlaceholderSuffix(String placeholderSuffix) {
+        if (!StringUtils.hasLength(placeholderSuffix)) {
+            throw new FlywayException("placeholderSuffix cannot be empty!");
+        }
         this.placeholderSuffix = placeholderSuffix;
     }
 

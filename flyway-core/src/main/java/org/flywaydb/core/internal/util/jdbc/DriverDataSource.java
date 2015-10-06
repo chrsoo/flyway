@@ -39,6 +39,7 @@ import org.flywaydb.core.internal.util.StringUtils;
 public class DriverDataSource implements DataSource {
     private static final String MARIADB_JDBC_DRIVER = "org.mariadb.jdbc.Driver";
     private static final String MYSQL_JDBC_URL_PREFIX = "jdbc:mysql:";
+    private static final String ORACLE_JDBC_URL_PREFIX = "jdbc:oracle:";
 
     /**
      * The JDBC Driver instance to use.
@@ -66,6 +67,11 @@ public class DriverDataSource implements DataSource {
     private final String[] initSqls;
 
     /**
+     * The properties to be passed to a new connection.
+     */
+    private final Properties connectionProps;
+
+    /**
      * The ClassLoader to use.
      */
     private final ClassLoader classLoader;
@@ -80,40 +86,30 @@ public class DriverDataSource implements DataSource {
      */
     private Connection singleConnection;
 
-	/**
-	 * Creates a new DriverDataSource.
-	 *
-	 * @param classLoader
-	 *            The ClassLoader to use.
-	 * @param driverClass
-	 *            The name of the JDBC Driver class to use. {@code null} for
-	 *            url-based autodetection.
-	 * @param url
-	 *            The JDBC URL to use for connecting through the Driver.
-	 *            (required)
-	 * @param user
-	 *            The JDBC user to use for connecting through the Driver.
-	 * @param password
-	 *            The JDBC password to use for connecting through the Driver.
-	 * @param initSqls
-	 *            The (optional) sql statements to execute to initialize a
-	 *            connection immediately after obtaining it.
-	 * @throws FlywayException
-	 *             when the datasource could not be created.
-	 */
+    /**
+     * Creates a new DriverDataSource.
+     *
+     * @param classLoader The ClassLoader to use.
+     * @param driverClass The name of the JDBC Driver class to use. {@code null} for url-based autodetection.
+     * @param url         The JDBC URL to use for connecting through the Driver. (required)
+     * @param user        The JDBC user to use for connecting through the Driver.
+     * @param password    The JDBC password to use for connecting through the Driver.
+     * @param initSqls    The (optional) sql statements to execute to initialize a connection immediately after obtaining it.
+     * @throws FlywayException when the datasource could not be created.
+     */
 	public DriverDataSource(ClassLoader classLoader, String driverClass, String url, String user, String password,
 			String... initSqls) throws FlywayException {
 
-		// Ideally the code shared between the two public constructors should be put in a 
+		// Ideally the code shared between the two public constructors should be put in a
 		// common private constructor but this makes the gradle-plugin fail as Groovy
 		// surprisingly does not respect private modifiers, cf
 		//
 		// 		https://issues.apache.org/jira/browse/GROOVY-1875
 		//
 		// this(classLoader, url, user, password, initSqls);
-		
+
 		validateURL(url);
-		
+
 		this.classLoader = classLoader;
 		this.url = url;
 		this.user = user;
@@ -124,36 +120,27 @@ public class DriverDataSource implements DataSource {
 		}
 
 		this.initSqls = initSqls;
-		
-		driver = loadDriver(classLoader, driverClass, url);
-		
+
+		this.driver = loadDriver(classLoader, driverClass, url);
+		this.connectionProps = detectPropsForUrl(url);
 	}
 
     /**
-	 * Creates a new DriverDataSource.
-	 *
-	 * @param classLoader
-	 *            The ClassLoader to use.
-	 * @param driver
-	 *            The JDBC Driver to use. {@code null}
-	 * @param url
-	 *            The JDBC URL to use for connecting through the Driver.
-	 *            (required)
-	 * @param user
-	 *            The JDBC user to use for connecting through the Driver.
-	 * @param password
-	 *            The JDBC password to use for connecting through the Driver.
-	 * @param initSqls
-	 *            The (optional) sql statements to execute to initialize a
-	 *            connection immediately after obtaining it.
-	 * @throws FlywayException
-	 *             when the datasource could not be created.
-	 */
+     * Creates a new DriverDataSource.
+     *
+     * @param classLoader The ClassLoader to use.
+     * @param driver	  The driver instance to use (required).
+     * @param url         The JDBC URL to use for connecting through the Driver. (required)
+     * @param user        The JDBC user to use for connecting through the Driver.
+     * @param password    The JDBC password to use for connecting through the Driver.
+     * @param initSqls    The (optional) sql statements to execute to initialize a connection immediately after obtaining it.
+     * @throws FlywayException when the datasource could not be created.
+     */
 	public DriverDataSource(ClassLoader classLoader, Driver driver, String url, String user, String password,
-			String... initSqls) throws FlywayException {
-		
+			Properties configurationJdbcProperties, String... initSqls) throws FlywayException {
+
 		validateURL(url);
-		
+
 		this.classLoader = classLoader;
 		this.url = url;
 		this.user = user;
@@ -168,9 +155,13 @@ public class DriverDataSource implements DataSource {
 		if(driver == null) {
 			throw new IllegalArgumentException("JDBC Driver must not be null!");
 		}
-		
+
 		this.driver = driver;
-		
+
+		Properties defaultProperties = detectPropsForUrl(url);
+
+		this.connectionProps = new Properties(defaultProperties);
+		this.connectionProps.putAll(configurationJdbcProperties);
 	}
 
 	/**
@@ -187,10 +178,10 @@ public class DriverDataSource implements DataSource {
 		}
 
 	}
-	
+
 	private Driver loadDriver(ClassLoader classLoader, String driverClass, String url) {
 		Driver driver;
-		
+
 		if (!StringUtils.hasLength(driverClass)) {
 			driverClass = detectDriverForUrl(url);
 			if (!StringUtils.hasLength(driverClass)) {
@@ -201,7 +192,7 @@ public class DriverDataSource implements DataSource {
 		try {
 			driver = ClassUtils.instantiate(driverClass, classLoader);
 		} catch (Exception e) {
-			String backupDriverClass = getBackupDriverForUrl(url);
+			String backupDriverClass = detectBackupDriverForUrl(url);
 			if (backupDriverClass == null) {
 				throw new FlywayException("Unable to instantiate JDBC driver: " + driverClass, e);
 			}
@@ -212,19 +203,35 @@ public class DriverDataSource implements DataSource {
 				throw new FlywayException("Unable to instantiate JDBC driver: " + driverClass, e);
 			}
 		}
-		
+
 		return driver;
 	}
 
-	/**
-	 * Retrieves a second choice backup driver for a jdbc url, in case the
-	 * primary driver is not available.
-	 *
-	 * @param url
-	 *            The Jdbc url.
-	 * @return The Jdbc driver. {@code null} if none.
-	 */
-    private String getBackupDriverForUrl(String url) {
+    /**
+     * Detect the default connection properties for this url.
+     *
+     * @param url The Jdbc url.
+     * @return The properties.
+     */
+    private Properties detectPropsForUrl(String url) {
+        Properties result = new Properties();
+
+        if (url.startsWith(ORACLE_JDBC_URL_PREFIX)) {
+            String osUser = System.getProperty("user.name");
+            result.put("v$session.osuser", osUser.substring(0, Math.min(osUser.length(), 30)));
+            result.put("v$session.program", "Flyway by Boxfuse");
+        }
+
+        return result;
+    }
+
+    /**
+     * Retrieves a second choice backup driver for a jdbc url, in case the primary driver is not available.
+     *
+     * @param url The Jdbc url.
+     * @return The Jdbc driver. {@code null} if none.
+     */
+    private String detectBackupDriverForUrl(String url) {
         if (url.startsWith(MYSQL_JDBC_URL_PREFIX)) {
             return MARIADB_JDBC_DRIVER;
         }
@@ -283,7 +290,7 @@ public class DriverDataSource implements DataSource {
             return "com.google.appengine.api.rdbms.AppEngineDriver";
         }
 
-        if (url.startsWith("jdbc:oracle:")) {
+        if (url.startsWith(ORACLE_JDBC_URL_PREFIX)) {
             return "oracle.jdbc.OracleDriver";
         }
 
@@ -349,7 +356,7 @@ public class DriverDataSource implements DataSource {
      * @see #getConnectionFromDriver(String, String)
      */
     @Override
-	public Connection getConnection() throws SQLException {
+    public Connection getConnection() throws SQLException {
         return getConnectionFromDriver(getUser(), getPassword());
     }
 
@@ -360,7 +367,7 @@ public class DriverDataSource implements DataSource {
      * @see #getConnectionFromDriver(String, String)
      */
     @Override
-	public Connection getConnection(String username, String password) throws SQLException {
+    public Connection getConnection(String username, String password) throws SQLException {
         return getConnectionFromDriver(username, password);
     }
 
@@ -380,7 +387,7 @@ public class DriverDataSource implements DataSource {
             return singleConnection;
         }
 
-        Properties props = new Properties();
+        Properties props = new Properties(this.connectionProps);
         if (username != null) {
             props.setProperty("user", username);
         }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.flywaydb.commandline;
+package org.flywaydb.core.internal.util.logging.console;
 
 import org.flywaydb.core.internal.util.logging.Log;
 
@@ -21,7 +21,7 @@ import org.flywaydb.core.internal.util.logging.Log;
  * Wrapper around a simple Console output.
  */
 public class ConsoleLog implements Log {
- 	public static enum Level {
+ 	public enum Level {
  		DEBUG, INFO, WARN
  	}
 	
