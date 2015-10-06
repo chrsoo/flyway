@@ -32,14 +32,15 @@ import org.osgi.util.tracker.BundleTrackerCustomizer;
  * <ul>
  * <li>FlywayManagedServiceFactory with the PID {@value FlywayConfigurationFactory#FLYWAY_FACTORY_PID}
  * <li>BundleTracker for tracking Flyway Migrations
- * </ul> 
- * 
+ * </ul>
+ *
  */
 public class FlywayBundleActivator implements BundleActivator {
 
+	private static final String DATA_SOURCE_FACTORY_CLASS_NAME = "org.osgi.service.jdbc.DataSourceFactory";
 	private static final Log LOG = LogFactory.getLog(FlywayBundleActivator.class);
 	private BundleTracker tracker;
-	
+
 	// -- BundleActivator
 
 	@Override
@@ -48,7 +49,10 @@ public class FlywayBundleActivator implements BundleActivator {
 		Properties factoryProperties = new Properties();
 		factoryProperties.put(Constants.SERVICE_PID, FlywayConfigurationFactory.FLYWAY_FACTORY_PID);
 
-		FlywayConfigurationFactory configurationFactory = new FlywayConfigurationFactory(context);
+		FlywayConfigurationFactory configurationFactory = isJdbcCompendiumService(context)
+				? new FlywayCompendiumConfigurationFactory(context)
+				: new FlywayConfigurationFactory(context);
+
 		context.registerService(ManagedServiceFactory.class.getName(), configurationFactory, factoryProperties);
 		LOG.info("Registered FlywayConfigurationFactory ManagedServiceFactory instance");
 
@@ -56,12 +60,31 @@ public class FlywayBundleActivator implements BundleActivator {
 		tracker = new BundleTracker(context, Bundle.STARTING, customizer);
 		tracker.open();
 		LOG.info("Registered FlywayOsgiExtender BundleTracker instance");
-		
+
 	}
 
 	@Override
 	public void stop(BundleContext context) throws Exception {
 		tracker.close();
 	}
+
+	// -- FlywayBundleActivator
+
+	/**
+	 * Find out if the optional DataSourceFactory class is available; avoids ClassNotFoundExceptions
+	 * @return true if org.osgi.service.jdbc.DataSourceFactory can be loaded
+	 */
+	private boolean isJdbcCompendiumService(BundleContext context) {
+		try {
+			Bundle bundle = context.getBundle();
+			bundle.loadClass(DATA_SOURCE_FACTORY_CLASS_NAME);
+			LOG.debug("The class '"+ DATA_SOURCE_FACTORY_CLASS_NAME +"' can be loaded");
+			return true;
+		} catch(ClassNotFoundException e) {
+			LOG.debug("The class '"+ DATA_SOURCE_FACTORY_CLASS_NAME +"' cannot be loaded");
+			return false;
+		}
+	}
+
 
 }

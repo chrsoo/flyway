@@ -18,7 +18,6 @@ package org.flywaydb.core.osgi;
 import static org.flywaydb.core.Flyway.FLYWAY_DRIVER_PROPERTY;
 
 import java.sql.Driver;
-import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Dictionary;
 import java.util.Enumeration;
@@ -36,13 +35,11 @@ import org.flywaydb.core.internal.util.logging.LogFactory;
 import org.flywaydb.core.internal.util.scanner.bundle.BundleScanner;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
-import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedServiceFactory;
-import org.osgi.service.jdbc.DataSourceFactory;
 
 /**
  * Registers FLyway data source configurations for the Managed Service Factory
@@ -54,7 +51,7 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 
 	public static final String FLYWAY_FACTORY_PID = "org.flywaydb.datasource";
 
-	private static final String FLYWAY_PROPERTY_PREFIX = "flyway.";
+	protected static final String FLYWAY_PROPERTY_PREFIX = "flyway.";
 
 	/**
 	 * <p>
@@ -72,9 +69,9 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	 */
 	public static final String FLYWAY_DRIVER_VERSION_PROPERTY = FLYWAY_PROPERTY_PREFIX + "driverVersion";
 
-	private BundleContext context;
+	protected final BundleContext context;
 
-	private Map<String, Properties> configurations = Collections.synchronizedMap(new HashMap<String, Properties>());
+	private final Map<String, Properties> configurations = Collections.synchronizedMap(new HashMap<String, Properties>());
 
 	// -- Constructors
 
@@ -99,21 +96,7 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 		LOG.info("Found Flyway configuration for data source '" + name + "'");
 
 		Properties flywayConf = getFlywayConf(managedServiceConfig);
-
-		synchronized (configurations) {
-			// old configurations are discarded on purpose, even if the new one
-			// fails
-			configurations.put(name, flywayConf);
-			try {
-				// test the configuration
-				createFlywayDataSource(flywayConf);
-			} catch (FlywayException e) {
-				configurations.remove(name);
-				LOG.warn("Updating Flyway data source configuration for '" + name + "' failed with error '"
-						+ e.getMessage() + "'");
-				throw e;
-			}
-		}
+		configurations.put(name, flywayConf);
 
 		LOG.info("Updated Flyway data source configuration '" + name + "'");
 	}
@@ -145,7 +128,8 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	}
 
 	@Override
-	public Flyway create(Bundle bundle, String name, Properties defaultConf) throws FlywayException {
+	public Flyway create(Bundle bundle, String name, Properties defaultConf)
+			throws FlywayException {
 
 		if (!configurations.containsKey(name)) {
 			persistDefaultConfig(name, defaultConf);
@@ -161,7 +145,7 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 		conf.putAll(managedConf);
 
 		// create the DataSource before we remove the JDBC configuration
-		DataSource dataSource = createFlywayDataSource(conf);
+		DataSource dataSource = createFlywayDataSource(bundle, conf);
 
 		// make sure that we don't configure the JDBC driver
 		conf.remove(Flyway.FLYWAY_DRIVER_PROPERTY);
@@ -219,80 +203,50 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	/**
 	 * Create a Flyway DriverDataSource instance optionally looking up the JDBC driver
 	 * using the OSGI Compendium DataSourceFactory's
+	 * @throws ConfigurationException if there is a configuration problem found when creating the data source
 	 */
-	private DataSource createFlywayDataSource(Properties config) {
+	private DataSource createFlywayDataSource(Bundle bundle, Properties config) {
 
 		String url = getConfigValue(config, Flyway.FLYWAY_URL_PROPERTY);
 		String user = getConfigValue(config, Flyway.FLYWAY_USER_PROPERTY);
 		String password = getConfigValue(config, Flyway.FLYWAY_PASSWORD_PROPERTY);
 
 		// FIXME add support for initSql's
-		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-		Properties properties = getJdbcProperties(config);
 		try {
-			Driver driver = loadDriver(config, properties);
-			return new DriverDataSource(classLoader, driver, url, user, password, properties);
-		} catch (ConfigurationException e1) {
-			LOG.warn(e1.getMessage());
-			LOG.warn("Falling back to default classloading mechanism in DriverDataSource");
-			String driverClass = getConfigValue(config, FLYWAY_DRIVER_PROPERTY);
-			try {
-				return new DriverDataSource(classLoader, driverClass, url, user, password);
-			} catch (Exception e2) {
-				LOG.error("Could not load JDBC driver using OSGI Compendium's JDBC Service", e1);
-				LOG.error("Could not load JDBC driver using the DriverDataSource default classloading mechanism", e2);
-				throw new FlywayException("Could not create JDBC Driver", e1);
-			}
-		}
-
-	}
-
-	private Driver loadDriver(Properties config, Properties properties) throws ConfigurationException {
-
-		ServiceReference serviceReference = lookupDataSourceFactory(config);
-		try {
-			DataSourceFactory dataSourceFactory = (DataSourceFactory) context.getService(serviceReference);
-			return dataSourceFactory.createDriver(properties);
-		} catch (SQLException e) {
-			LOG.warn(e.getMessage());
-			throw new ConfigurationException(FLYWAY_DRIVER_PROPERTY,
-					"Caught SQLException when creating the JDBC driver using the "
-							+ "OSGI Compendium JDBC Service's DataSourceFactory",
-					e);
-		} finally {
-			if (serviceReference != null) {
-				context.ungetService(serviceReference);
-			}
+			Driver driver = loadDriver(bundle, config);
+			ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+			Properties jdbcProperties = getJdbcProperties(config);
+			return new DriverDataSource(classLoader, driver, url, user, password, jdbcProperties);
+		} catch (ConfigurationException e) {
+			throw new FlywayException("Could not create flyway datasource", e);
 		}
 	}
 
 	/**
-	 * Lookup the OSGI Compendium JDBC DataSourceFactory based on a given class
-	 * name
+	 * Load the driver from the given bundle.
+	 * @param bundle the bundle whose class loader contains the driver
+	 * @param config the configuration properties
+	 * @return a JDBC driver instance
+	 * @throws ConfigurationException if the driver cannot be loaded
 	 */
-	private ServiceReference lookupDataSourceFactory(Properties config) throws ConfigurationException {
+	@SuppressWarnings("unchecked")
+	protected Driver loadDriver(Bundle bundle, Properties config) throws ConfigurationException {
 
-		OsgiJdbcServiceFilter filter = new OsgiJdbcServiceFilter(config, FLYWAY_DRIVER_PROPERTY,
-				FLYWAY_DRIVER_NAME_PROPERTY, FLYWAY_DRIVER_VERSION_PROPERTY);
-
+		String driverClassName = config.getProperty(FLYWAY_DRIVER_PROPERTY);
 		try {
-			ServiceReference[] serviceReferences = context.getServiceReferences(DataSourceFactory.class.getName(),
-					filter.toString());
-
-			if(serviceReferences == null || serviceReferences.length == 0) {
-				throw new ConfigurationException(FLYWAY_DRIVER_PROPERTY,
-						"No OSGI JDBC Compendium DataSourceFactory found for filter '" + filter + "'");
-			}
-
-			if (serviceReferences.length > 1) {
-				LOG.warn("Found multiple DataSourceFactory services for filter '" + filter
-						+ "', selecting the instance first returned");
-			}
-
-			return serviceReferences[0];
-		} catch (InvalidSyntaxException e) {
+			Class<Driver> driverClass = (Class<Driver>) bundle.loadClass(driverClassName);
+			LOG.info("Loaded the driver '" + driverClassName + "' from the bundle");
+			return driverClass.newInstance();
+		} catch (ClassNotFoundException e) {
 			throw new ConfigurationException(FLYWAY_DRIVER_PROPERTY,
-					"Could not lookup the OSGI Compendium JDBC DataSourceFactory", e);
+
+					"Could not load driver '" + driverClassName + "'", e);
+		} catch (InstantiationException e) {
+			throw new ConfigurationException(FLYWAY_DRIVER_PROPERTY,
+					"Could instantiate driver '" + driverClassName + "'; ", e);
+		} catch (IllegalAccessException e) {
+			throw new ConfigurationException(FLYWAY_DRIVER_PROPERTY,
+					"Could not access '" + driverClassName + "'; ", e);
 		}
 	}
 
@@ -305,7 +259,7 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	 * @return a new Properties instance containing only JDBC configuration
 	 *         properties.
 	 */
-	private Properties getJdbcProperties(Properties config) {
+	protected Properties getJdbcProperties(Properties config) {
 		Properties properties = new Properties();
 		Enumeration<Object> keys = config.keys();
 		String key;
