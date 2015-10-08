@@ -15,14 +15,13 @@
  */
 package org.flywaydb.core.osgi;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.Properties;
+import java.util.List;
 
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.FlywayException;
+import org.flywaydb.core.internal.util.StringUtils;
 import org.flywaydb.core.internal.util.logging.Log;
 import org.flywaydb.core.internal.util.logging.LogFactory;
 import org.osgi.framework.Bundle;
@@ -43,70 +42,117 @@ public class FlywayOsgiExtender implements BundleTrackerCustomizer {
 
 	@Override
 	public Object addingBundle(Bundle bundle, BundleEvent event) {
-		switch (event.getType()) {
-		case Bundle.STARTING:
-			migrate(bundle);
-			break;
-		default:
-			LOG.warn("Received unhandled event type " + event.getType());
+		return migrate(bundle, event);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public void modifiedBundle(Bundle bundle, BundleEvent event, Object object) {
+		// cast should always work or there is a bug in the tracker
+		List<String> configurationList = (List<String>) object;
+
+		String configurations = configurationListToString(configurationList);
+		LOG.debug("Flyway bundle modified for configurations " + configurations);
+
+		List<String> newConfigurationList = migrate(bundle, event);
+
+		boolean changed;
+		if(newConfigurationList == null) {
+			changed = configurationList.size() < 0;
+			configurationList.clear();
+		} else {
+			changed = configurationList.retainAll(newConfigurationList);
 		}
 
-		return null;
+		String message = "Flyway bundle " + bundle.getBundleId() + " updated; ";
+		if(changed) {
+			String newConfigurations = configurationListToString(newConfigurationList);
+			message += "changed from [" + configurations + "] to [" + newConfigurations + "]";
+		} else {
+			message += "previous list of configurations retained [" + configurations + "]";
+		}
+
+		LOG.info(message);
+
 	}
 
 	@Override
-	public void modifiedBundle(Bundle bundle, BundleEvent event, Object object) {
-		// noop
-	}
-
-	@Override
+	@SuppressWarnings("unchecked")
 	public void removedBundle(Bundle bundle, BundleEvent event, Object object) {
-		// noop
+		String configurations = StringUtils.collectionToCommaDelimitedString((List<String>) object);
+		LOG.info("Removed Flyway '" + configurations
+				+ "' from " + bundle.getBundleId());
 	}
 
 	// -- FlywayOsgiExtender
 
-	@SuppressWarnings("unchecked")
-	public void migrate(Bundle bundle) {
-		Enumeration<URL> entries = bundle.findEntries("META-INF/flyway", "*.conf", false);
-		URL configUrl;
-		while (entries.hasMoreElements()) {
-			configUrl = entries.nextElement();
-			LOG.debug("Found Flyway configuration URL '" + configUrl + "'");
-			migrate(bundle, configUrl);
+	// FIXME Somehow stop the bundle when an exception is thrown!
+	private List<String> migrate(Bundle bundle, BundleEvent event) {
+
+		BundleState state = BundleState.get(bundle.getState());
+		BundleEventType eventType = BundleEventType.get(event);
+
+		LOG.debug("Received '" + eventType
+				+ "' event for bundle " + bundle.getBundleId()
+				+ " in state '" + state + "'");
+
+		try {
+			// we assume that we only receive events when we are in the STARTING state
+			return migrate(bundle);
+		} catch(Exception e) {
+			LOG.error("Caught unhandled exception while executing Flyway migrate", e);
+			return null;
 		}
 	}
 
-	private void migrate(Bundle bundle, URL configUrl) {
+	@SuppressWarnings("unchecked")
+	private List<String> migrate(Bundle bundle) {
 
-		String name = getName(configUrl);
-		LOG.debug("Migrating '" + name + "'");
+		List<String> configurations = new ArrayList<String>();
+		Enumeration<URL> entries = bundle.findEntries("META-INF/flyway", "*.properties", false);
 
-		Properties conf = loadProperties(configUrl);
-		Flyway flyway = factory.create(bundle, name, conf);
+		if(entries == null || !entries.hasMoreElements()) {
+			LOG.debug("No Flyway migrations found for bundle " + bundle.getBundleId());
+			return null;
+		}
 
+		FlywayBundleConfiguration config;
+		while (entries.hasMoreElements()) {
+			config = new FlywayBundleConfiguration(entries.nextElement());
+			LOG.debug("Found Flyway configuration '" + config.getName()
+				+ "' for URL '" + config.getUrl() + "'");
+			String configuration = migrate(bundle, config);
+			configurations.add(configuration);
+		}
+
+		LOG.debug("Found " + configurations.size()
+				+ " Flyway migrations found for bundle "
+				+ bundle.getBundleId());
+
+		return configurations;
+	}
+
+	/**
+	 * Migrate the configuration URL
+	 *
+	 * @param bundle the bundle that owns the configuration
+	 * @param configUrl the URL to the Flyway configuration properties file
+	 * @return the name of the configuration that was migrated
+	 */
+	private String migrate(Bundle bundle, FlywayBundleConfiguration config) {
+
+		Flyway flyway = factory.create(bundle, config);
+
+		LOG.debug("Migrating '" + config.getName() + "'");
 		flyway.migrate();
 
-		LOG.info("Migrated '" + name + "'");
+		LOG.info("Migrated '" + config.getName() + "'");
+		return config.getName();
 	}
 
-	private String getName(URL configUrl) {
-		String file = configUrl.getFile();
-		return file.substring(0, file.lastIndexOf("."));
+	private String configurationListToString(List<String> configurationList) {
+		return configurationList == null || configurationList.isEmpty()
+				? "<empty>"
+				: StringUtils.collectionToCommaDelimitedString(configurationList);
 	}
-
-	private Properties loadProperties(URL configUrl) {
-		Properties properties = new Properties();
-		InputStream stream;
-		try {
-			stream = configUrl.openStream();
-			properties.load(stream);
-		} catch (IOException e) {
-			throw new FlywayException(
-					"Could not open Flyway configuration " + "properties from URL '" + configUrl + "'");
-		}
-
-		return properties;
-	}
-
 }

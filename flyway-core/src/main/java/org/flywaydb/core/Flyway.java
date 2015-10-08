@@ -69,21 +69,23 @@ import org.flywaydb.core.internal.util.scanner.Scanner;
  * </p>
  */
 public class Flyway {
-	
-    public static final String FLYWAY_PASSWORD_PROPERTY = "flyway.password";
 
-    public static final String FLYWAY_USER_PROPERTY = "flyway.user";
+	public static final String FLYWAY_PROPERTY_PREFIX = "flyway.";
 
-    public static final String FLYWAY_URL_PROPERTY = "flyway.url";
+    public static final String FLYWAY_PASSWORD_PROPERTY = FLYWAY_PROPERTY_PREFIX + "password";
 
-	public static final String FLYWAY_DRIVER_PROPERTY = "flyway.driver";
+    public static final String FLYWAY_USER_PROPERTY = FLYWAY_PROPERTY_PREFIX + "user";
+
+    public static final String FLYWAY_URL_PROPERTY = FLYWAY_PROPERTY_PREFIX + "url";
+
+	public static final String FLYWAY_DRIVER_PROPERTY = FLYWAY_PROPERTY_PREFIX + "driver";
 
 	private static final Log LOG = LogFactory.getLog(Flyway.class);
 
     /**
      * Property name prefix for placeholders that are configured through properties.
      */
-    private static final String PLACEHOLDERS_PROPERTY_PREFIX = "flyway.placeholders.";
+    private static final String PLACEHOLDERS_PROPERTY_PREFIX = FLYWAY_PROPERTY_PREFIX + "placeholders.";
 
     /**
      * The locations to scan recursively for migrations.
@@ -258,7 +260,7 @@ public class Flyway {
      * The ClassLoader to use for resolving migrations on the classpath. (default: Thread.currentThread().getContextClassLoader() )
      */
     private ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-    
+
     private Scanner scanner = new DefaultScanner(getClass().getClassLoader());
 
     /**
@@ -568,7 +570,7 @@ public class Flyway {
     /**
      * Retrieves the ClassLoader to use for resolving migrations on the classpath.
      *
-     * @return The ClassLoader used for resolvning JDBC drivers by class name and by the DefaultScanner 
+     * @return The ClassLoader used for resolvning JDBC drivers by class name and by the DefaultScanner
      * to retrieve migrations
      */
     public ClassLoader getClassLoader() throws IllegalStateException {
@@ -821,7 +823,7 @@ public class Flyway {
 
     /**
      * Set the Scanner implementation to use when scanning classes, leave the default in most cases!
-     * 
+     *
      * @param scanner the Scanner implementation used to scan for migrations and load classes
      */
     public void setScanner(Scanner scanner) {
@@ -1259,10 +1261,10 @@ public class Flyway {
      * @return A new, fully configured, MigrationResolver instance.
      */
     private MigrationResolver createMigrationResolver(DbSupport dbSupport) {
-    	
+
     	PlaceholderReplacer placeholderReplacer = createPlaceholderReplacer();
     	Collection<MigrationResolver> resolvers = new ArrayList<MigrationResolver>();
-    	
+
         for (Location location : locations.getLocations()) {
             resolvers.add(new SqlMigrationResolver(dbSupport, scanner, location, placeholderReplacer,
                     encoding, sqlMigrationPrefix, sqlMigrationSeparator, sqlMigrationSuffix));
@@ -1272,7 +1274,7 @@ public class Flyway {
             	resolvers.add(new SpringJdbcMigrationResolver(scanner, location));
             }
         }
-        
+
 		return new CompositeMigrationResolver(resolvers);
     }
 
@@ -1302,101 +1304,104 @@ public class Flyway {
         String userProp = properties.getProperty(FLYWAY_USER_PROPERTY);
         String passwordProp = properties.getProperty(FLYWAY_PASSWORD_PROPERTY);
 
-        if (StringUtils.hasText(urlProp)) {
-            setDataSource(new DriverDataSource(classLoader, driverProp, urlProp, userProp, passwordProp));
-        } else if (!StringUtils.hasText(urlProp) &&
-                (StringUtils.hasText(driverProp) || StringUtils.hasText(userProp) || StringUtils.hasText(passwordProp))) {
-            LOG.warn("Discarding INCOMPLETE dataSource configuration! flyway.url must be set.");
+        // Don't overwrite a DataSource set programmatically
+        if(dataSource == null) {
+        	if (StringUtils.hasText(urlProp)) {
+        		setDataSource(new DriverDataSource(classLoader, driverProp, urlProp, userProp, passwordProp));
+        	} else if (!StringUtils.hasText(urlProp) &&
+        			(StringUtils.hasText(driverProp) || StringUtils.hasText(userProp) || StringUtils.hasText(passwordProp))) {
+        		LOG.warn("Discarding INCOMPLETE dataSource configuration! flyway.url must be set.");
+        	}
         }
 
-        String locationsProp = properties.getProperty("flyway.locations");
+        String locationsProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "locations");
         if (locationsProp != null) {
             setLocations(StringUtils.tokenizeToStringArray(locationsProp, ","));
         }
-        String placeholderPrefixProp = properties.getProperty("flyway.placeholderPrefix");
+        String placeholderPrefixProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "placeholderPrefix");
         if (placeholderPrefixProp != null) {
             setPlaceholderPrefix(placeholderPrefixProp);
         }
-        String placeholderSuffixProp = properties.getProperty("flyway.placeholderSuffix");
+        String placeholderSuffixProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "placeholderSuffix");
         if (placeholderSuffixProp != null) {
             setPlaceholderSuffix(placeholderSuffixProp);
         }
-        String sqlMigrationPrefixProp = properties.getProperty("flyway.sqlMigrationPrefix");
+        String sqlMigrationPrefixProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "sqlMigrationPrefix");
         if (sqlMigrationPrefixProp != null) {
             setSqlMigrationPrefix(sqlMigrationPrefixProp);
         }
-        String sqlMigrationSeparatorProp = properties.getProperty("flyway.sqlMigrationSeparator");
+        String sqlMigrationSeparatorProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "sqlMigrationSeparator");
         if (sqlMigrationSeparatorProp != null) {
             setSqlMigrationSeparator(sqlMigrationSeparatorProp);
         }
-        String sqlMigrationSuffixProp = properties.getProperty("flyway.sqlMigrationSuffix");
+        String sqlMigrationSuffixProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "sqlMigrationSuffix");
         if (sqlMigrationSuffixProp != null) {
             setSqlMigrationSuffix(sqlMigrationSuffixProp);
         }
-        String encodingProp = properties.getProperty("flyway.encoding");
+        String encodingProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "encoding");
         if (encodingProp != null) {
             setEncoding(encodingProp);
         }
-        String schemasProp = properties.getProperty("flyway.schemas");
+        String schemasProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "schemas");
         if (schemasProp != null) {
             setSchemas(StringUtils.tokenizeToStringArray(schemasProp, ","));
         }
-        String tableProp = properties.getProperty("flyway.table");
+        String tableProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "table");
         if (tableProp != null) {
             setTable(tableProp);
         }
-        String cleanOnValidationErrorProp = properties.getProperty("flyway.cleanOnValidationError");
+        String cleanOnValidationErrorProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "cleanOnValidationError");
         if (cleanOnValidationErrorProp != null) {
             setCleanOnValidationError(Boolean.parseBoolean(cleanOnValidationErrorProp));
         }
-        String validateOnMigrateProp = properties.getProperty("flyway.validateOnMigrate");
+        String validateOnMigrateProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "validateOnMigrate");
         if (validateOnMigrateProp != null) {
             setValidateOnMigrate(Boolean.parseBoolean(validateOnMigrateProp));
         }
-        String initVersionProp = properties.getProperty("flyway.initVersion");
+        String initVersionProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "initVersion");
         if (initVersionProp != null) {
             LOG.warn("flyway.initVersion is deprecated and will be removed in Flyway 4.0. Use flyway.baselineVersion instead.");
             setBaselineVersion(MigrationVersion.fromVersion(initVersionProp));
         }
-        String initDescriptionProp = properties.getProperty("flyway.initDescription");
+        String initDescriptionProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "initDescription");
         if (initDescriptionProp != null) {
             LOG.warn("flyway.initDescription is deprecated and will be removed in Flyway 4.0. Use flyway.baselineDescription instead.");
             setBaselineDescription(initDescriptionProp);
         }
-        String initOnMigrateProp = properties.getProperty("flyway.initOnMigrate");
+        String initOnMigrateProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "initOnMigrate");
         if (initOnMigrateProp != null) {
             LOG.warn("flyway.initOnMigrate is deprecated and will be removed in Flyway 4.0. Use flyway.baselineOnMigrate instead.");
             setBaselineOnMigrate(Boolean.parseBoolean(initOnMigrateProp));
         }
-        String baselineVersionProp = properties.getProperty("flyway.baselineVersion");
+        String baselineVersionProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "baselineVersion");
         if (baselineVersionProp != null) {
             setBaselineVersion(MigrationVersion.fromVersion(baselineVersionProp));
         }
-        String baselineDescriptionProp = properties.getProperty("flyway.baselineDescription");
+        String baselineDescriptionProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "baselineDescription");
         if (baselineDescriptionProp != null) {
             setBaselineDescription(baselineDescriptionProp);
         }
-        String baselineOnMigrateProp = properties.getProperty("flyway.baselineOnMigrate");
+        String baselineOnMigrateProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "baselineOnMigrate");
         if (baselineOnMigrateProp != null) {
             setBaselineOnMigrate(Boolean.parseBoolean(baselineOnMigrateProp));
         }
-        String ignoreFailedFutureMigrationProp = properties.getProperty("flyway.ignoreFailedFutureMigration");
+        String ignoreFailedFutureMigrationProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "ignoreFailedFutureMigration");
         if (ignoreFailedFutureMigrationProp != null) {
             setIgnoreFailedFutureMigration(Boolean.parseBoolean(ignoreFailedFutureMigrationProp));
         }
-        String targetProp = properties.getProperty("flyway.target");
+        String targetProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "target");
         if (targetProp != null) {
             setTarget(MigrationVersion.fromVersion(targetProp));
         }
-        String outOfOrderProp = properties.getProperty("flyway.outOfOrder");
+        String outOfOrderProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "outOfOrder");
         if (outOfOrderProp != null) {
             setOutOfOrder(Boolean.parseBoolean(outOfOrderProp));
         }
-        String resolversProp = properties.getProperty("flyway.resolvers");
+        String resolversProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "resolvers");
         if (StringUtils.hasLength(resolversProp)) {
             setResolversAsClassNames(StringUtils.tokenizeToStringArray(resolversProp, ","));
         }
-        String callbacksProp = properties.getProperty("flyway.callbacks");
+        String callbacksProp = properties.getProperty(FLYWAY_PROPERTY_PREFIX + "callbacks");
         if (StringUtils.hasLength(callbacksProp)) {
             setCallbacksAsClassNames(StringUtils.tokenizeToStringArray(callbacksProp, ","));
         }

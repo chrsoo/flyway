@@ -162,6 +162,7 @@ public class DriverDataSource implements DataSource {
 
 		this.connectionProps = new Properties(defaultProperties);
 		this.connectionProps.putAll(configurationJdbcProperties);
+
 	}
 
 	/**

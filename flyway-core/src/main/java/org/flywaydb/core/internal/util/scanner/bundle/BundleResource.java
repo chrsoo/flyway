@@ -28,55 +28,55 @@ import java.nio.charset.Charset;
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.internal.util.FileCopyUtils;
 import org.flywaydb.core.internal.util.scanner.Resource;
+import org.flywaydb.core.internal.util.scanner.classpath.ClassPathResource;
 import org.osgi.framework.Bundle;
 
 /**
- * The BundleResource borrows heavily from the ClassPathResource implementation
- *
+ * The BundleResource borrows heavily from the {@link ClassPathResource} implementation
  */
-final class BundleResource implements Resource {
-	
+final class BundleResource implements Comparable<BundleResource>, Resource {
+
 	private final Bundle bundle;
-	private final String resourceName;
+	private final String location;
 
 	BundleResource(Bundle bundle, String resourceName) {
 		this.bundle = bundle;
-		this.resourceName = resourceName;
+		this.location = resourceName;
 	}
 
 	@Override
 	public String loadAsString(String encoding) {
-		URL resource = bundle.getResource(resourceName);
+		URL resource = bundle.getResource(location);
 	    try {
 	        InputStream inputStream = resource.openStream();
 	        if (inputStream == null) {
 	            throw new FlywayException("Unable to obtain "
-	            		+ "inputstream for resource: " + resourceName);
+	            		+ "inputstream for resource: " + location);
 	        }
-	        Reader reader = new InputStreamReader(inputStream, 
+	        Reader reader = new InputStreamReader(inputStream,
 	        		Charset.forName(encoding));
 
 	        return FileCopyUtils.copyToString(reader);
 	    } catch (IOException e) {
-	        throw new FlywayException("Unable to load resource: " + 
-	        		resourceName + " (encoding: " + encoding + ")", e);
+	        throw new FlywayException("Unable to load resource: " +
+	        		location + " (encoding: " + encoding + ")", e);
 	    }
 	}
 
 	@Override
 	public byte[] loadAsBytes() {
-		URL resource = getUrl(resourceName);						
+		URL resource = getUrl(location);
 	    try {
 	        InputStream inputStream = resource.openStream();
 	        return FileCopyUtils.copyToByteArray(inputStream);
 	    } catch (IOException e) {
-	        throw new FlywayException("Unable to load resource: " + resourceName, e);
+	        throw new FlywayException("Unable to load resource: " + location, e);
 	    }
 	}
 
 	@Override
 	public String getLocationOnDisk() {
-		URL url = getUrl(resourceName);
+		URL url = getUrl(location);
 	    try {
 	        return new File(URLDecoder.decode(url.getPath(), "UTF-8")).getAbsolutePath();
 	    } catch (UnsupportedEncodingException e) {
@@ -86,14 +86,14 @@ final class BundleResource implements Resource {
 
 	@Override
 	public String getLocation() {
-		return resourceName;
+		return location;
 	}
 
 	@Override
 	public String getFilename() {
-		return resourceName.contains("/") 
-				? resourceName.substring(resourceName.lastIndexOf("/") + 1)
-				: resourceName;
+		return location.contains("/")
+				? location.substring(location.lastIndexOf("/") + 1)
+				: location;
 	}
 
 	private URL getUrl(final String resource) {
@@ -103,4 +103,30 @@ final class BundleResource implements Resource {
 		}
 		return url;
 	}
+
+	// -- Comparable<BundleResource>
+
+    public int compareTo(BundleResource o) {
+        return location.compareTo(o.location);
+    }
+
+	// -- Object
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        BundleResource that = (BundleResource) o;
+
+        if (!location.equals(that.location)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return location.hashCode();
+    }
+
 }

@@ -37,7 +37,7 @@ public class OsgiJdbcServiceFilter {
 	}
 
 	public void addPropertyValue(Properties config, String property) {
-		String value = FlywayConfigurationFactory.getConfigValue(config, property);
+		String value = getConfigValue(config, property);
 		if (value != null) {
 			props.put(property, value.trim());
 		}
@@ -86,4 +86,10 @@ public class OsgiJdbcServiceFilter {
 		return props;
 	}
 
+	public String getConfigValue(Properties properties, String key) {
+		String value = (String) properties.get(key);
+		return value == null
+				? null
+				: value.trim();
+	}
 }

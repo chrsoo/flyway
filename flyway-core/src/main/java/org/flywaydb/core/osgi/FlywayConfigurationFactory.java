@@ -35,43 +35,25 @@ import org.flywaydb.core.internal.util.logging.LogFactory;
 import org.flywaydb.core.internal.util.scanner.bundle.BundleScanner;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
-import org.osgi.framework.ServiceReference;
-import org.osgi.service.cm.Configuration;
+import org.osgi.framework.Constants;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedServiceFactory;
 
 /**
- * Registers FLyway data source configurations for the Managed Service Factory
+ * Registers FLyway configurations for the Managed Service Factory
  * PID {@value #FLYWAY_FACTORY_PID}.
  */
 public class FlywayConfigurationFactory implements ManagedServiceFactory, FlywayFactory {
 
 	private static final Log LOG = LogFactory.getLog(FlywayConfigurationFactory.class);
 
-	public static final String FLYWAY_FACTORY_PID = "org.flywaydb.datasource";
-
-	protected static final String FLYWAY_PROPERTY_PREFIX = "flyway.";
-
-	/**
-	 * <p>
-	 * The {@value #FLYWAY_DRIVER_NAME_PROPERTY} property is used in the Flyway
-	 * data source configuration files to indicate the name of the JDBC driver
-	 * to be used for the data source configuration.
-	 */
-	public static final String FLYWAY_DRIVER_NAME_PROPERTY = FLYWAY_PROPERTY_PREFIX + "driverName";
-
-	/**
-	 * <p>
-	 * The {@value #FLYWAY_DRIVER_VERSION_PROPERTY} property is used in the
-	 * Flyway data source configuration files to indicate the version of the
-	 * JDBC driver to be used for the data source configuration.
-	 */
-	public static final String FLYWAY_DRIVER_VERSION_PROPERTY = FLYWAY_PROPERTY_PREFIX + "driverVersion";
+	public static final String FLYWAY_FACTORY_PID = "org.flywaydb.core";
 
 	protected final BundleContext context;
 
-	private final Map<String, Properties> configurations = Collections.synchronizedMap(new HashMap<String, Properties>());
+	private final Map<String, FlywayManagedConfiguration> configurations =
+			Collections.synchronizedMap(new HashMap<String, FlywayManagedConfiguration>());
 
 	// -- Constructors
 
@@ -88,76 +70,62 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 
 	@Override
 	@SuppressWarnings("rawtypes")
-	public void updated(String pid, Dictionary managedServiceConfig) throws ConfigurationException {
+	public void updated(String pid, Dictionary config) throws ConfigurationException {
 
-		LOG.debug("Updating Flyway configuration for pid '" + pid + "'");
+		FlywayManagedConfiguration flywayConf = new FlywayManagedConfiguration(config);
 
-		String name = getFlywayName(pid);
-		LOG.info("Found Flyway configuration for data source '" + name + "'");
+		String name = flywayConf.getName();
+		if(name == null) {
+			LOG.warn("Flyway configuration for pid " + pid
+					+ " must define the '"
+					+ FlywayManagedConfiguration.FLYWAY_NAME_PROPERTY
+					+ "' property");
+			return;
+		}
 
-		Properties flywayConf = getFlywayConf(managedServiceConfig);
 		configurations.put(name, flywayConf);
-
-		LOG.info("Updated Flyway data source configuration '" + name + "'");
+		LOG.info("Updated Flyway configuration '" + name + "' with pid '" + pid + "'");
 	}
 
 	@Override
 	public void deleted(String pid) {
 		String name = getFlywayName(pid);
 		configurations.remove(name);
-		LOG.info("Removed the Flyway configuration for data source '" + name + "'");
+		LOG.info("Removed the Flyway configuration for '" + name + "'");
 	}
 
 	// -- FlywayFactory
 
-	private Properties getFlywayConf(Dictionary<?, ?> config) {
-
-		if (config instanceof Properties) {
-			return (Properties) config;
-		}
-
-		Properties flywayConf = new Properties();
-		Enumeration<?> enumeration = config.keys();
-		while (enumeration.hasMoreElements()) {
-			Object key = enumeration.nextElement();
-			Object value = config.get(key);
-			flywayConf.put(key, value);
-		}
-
-		return flywayConf;
-	}
-
 	@Override
-	public Flyway create(Bundle bundle, String name, Properties defaultConf)
+	public Flyway create(Bundle bundle, FlywayBundleConfiguration bundleConfig)
 			throws FlywayException {
 
-		if (!configurations.containsKey(name)) {
-			persistDefaultConfig(name, defaultConf);
-		}
+		LOG.debug("Creating Flyway instance for bundle " + bundle.getBundleId()
+				+ "' and '" + bundleConfig.getName() + "'");
+
+		String name = bundleConfig.getName();
+		Properties defaultProperties = bundleConfig.loadProperties();
 
 		Flyway flyway = new Flyway();
 
 		// create a new properties instance so as not to modify the defaultConf
-		Properties conf = new Properties(defaultConf);
+		Properties flywayProperties = new Properties();
+		flywayProperties.putAll(defaultProperties);
 
 		// the managed conf overrides the defaultConf
-		Properties managedConf = configurations.get(name);
-		conf.putAll(managedConf);
+		if(configurations.containsKey(name)) {
+			FlywayManagedConfiguration managedConfig = configurations.get(name);
+			flywayProperties.putAll(managedConfig.getProperties());
+		} else {
+			LOG.warn("Could not find managed configuration for Flyway '" + name + "'");
+		}
 
-		// create the DataSource before we remove the JDBC configuration
-		DataSource dataSource = createFlywayDataSource(bundle, conf);
-
-		// make sure that we don't configure the JDBC driver
-		conf.remove(Flyway.FLYWAY_DRIVER_PROPERTY);
-		conf.remove(Flyway.FLYWAY_URL_PROPERTY);
-		conf.remove(Flyway.FLYWAY_USER_PROPERTY);
-		conf.remove(Flyway.FLYWAY_PASSWORD_PROPERTY);
-
-		// apply the conf to the Flyway instance
-		flyway.configure(conf);
-
-		// set the previously created DataSource
+		// create the DataSource before we remove the JDBC driver and URL
+		DataSource dataSource = createFlywayDataSource(bundle, flywayProperties);
 		flyway.setDataSource(dataSource);
+
+		// apply the properties to the Flyway instance
+		flyway.configure(flywayProperties);
 
 		// set the Scanner strategy
 		BundleScanner scanner = new BundleScanner(bundle);
@@ -168,54 +136,22 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 
 	// -- FlywayDatasourceServiceFactory
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private void persistDefaultConfig(String name, Properties defaultConf) {
-
-		String pid = getFlywayPID(name);
-		LOG.debug("Creating new Flyway configuration '" + name + "' with pid '" + pid + "' using default values");
-
-		ServiceReference reference = context.getServiceReference(ConfigurationAdmin.class.getName());
-		if (reference == null) {
-			throw new FlywayException("Could not get ServiceReference for " + ConfigurationAdmin.class);
-		}
-
-		try {
-			ConfigurationAdmin service = (ConfigurationAdmin) context.getService(reference);
-			Configuration flywayConfiguration = service.createFactoryConfiguration(pid);
-			flywayConfiguration.update((Dictionary) defaultConf);
-		} catch (Exception e) {
-			throw new FlywayException("Could not create defaults for '" + name + "' configuration", e);
-		} finally {
-			context.ungetService(reference);
-		}
-
-		LOG.info("Created new Flyway configuration '" + name + "' with pid '" + pid + "' using default values");
-
-	}
-
-	static String getConfigValue(Properties config, String key) {
-		String value = (String) config.get(key);
-		return value == null
-				? null
-				: value.trim();
-	}
-
 	/**
 	 * Create a Flyway DriverDataSource instance optionally looking up the JDBC driver
 	 * using the OSGI Compendium DataSourceFactory's
 	 * @throws ConfigurationException if there is a configuration problem found when creating the data source
 	 */
-	private DataSource createFlywayDataSource(Bundle bundle, Properties config) {
+	private DataSource createFlywayDataSource(Bundle bundle, Properties flywayProperties) {
 
-		String url = getConfigValue(config, Flyway.FLYWAY_URL_PROPERTY);
-		String user = getConfigValue(config, Flyway.FLYWAY_USER_PROPERTY);
-		String password = getConfigValue(config, Flyway.FLYWAY_PASSWORD_PROPERTY);
+		String url = flywayProperties.getProperty(Flyway.FLYWAY_URL_PROPERTY);
+		String user = flywayProperties.getProperty(Flyway.FLYWAY_USER_PROPERTY);
+		String password = flywayProperties.getProperty(Flyway.FLYWAY_PASSWORD_PROPERTY);
 
 		// FIXME add support for initSql's
 		try {
-			Driver driver = loadDriver(bundle, config);
+			Driver driver = loadDriver(bundle, flywayProperties);
 			ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-			Properties jdbcProperties = getJdbcProperties(config);
+			Properties jdbcProperties = getJdbcProperties(flywayProperties);
 			return new DriverDataSource(classLoader, driver, url, user, password, jdbcProperties);
 		} catch (ConfigurationException e) {
 			throw new FlywayException("Could not create flyway datasource", e);
@@ -230,16 +166,21 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	 * @throws ConfigurationException if the driver cannot be loaded
 	 */
 	@SuppressWarnings("unchecked")
-	protected Driver loadDriver(Bundle bundle, Properties config) throws ConfigurationException {
+	protected Driver loadDriver(Bundle bundle, Properties flywayConfig) throws ConfigurationException {
 
-		String driverClassName = config.getProperty(FLYWAY_DRIVER_PROPERTY);
+		String driverClassName = flywayConfig.getProperty(FLYWAY_DRIVER_PROPERTY);
+
+		if(driverClassName == null) {
+			throw new FlywayException("The '" + FLYWAY_DRIVER_PROPERTY + "' property not defined!");
+		}
+
 		try {
 			Class<Driver> driverClass = (Class<Driver>) bundle.loadClass(driverClassName);
-			LOG.info("Loaded the driver '" + driverClassName + "' from the bundle");
-			return driverClass.newInstance();
+			Driver driver = driverClass.newInstance();
+			LOG.debug("Loaded the driver '" + driverClassName + "' from the bundle");
+			return driver;
 		} catch (ClassNotFoundException e) {
 			throw new ConfigurationException(FLYWAY_DRIVER_PROPERTY,
-
 					"Could not load driver '" + driverClassName + "'", e);
 		} catch (InstantiationException e) {
 			throw new ConfigurationException(FLYWAY_DRIVER_PROPERTY,
@@ -251,38 +192,50 @@ public class FlywayConfigurationFactory implements ManagedServiceFactory, Flyway
 	}
 
 	/**
+	 * Check all Flyway configurations for a pid that matches
+	 * and return the Flyway configuration name.
+	 */
+	private String getFlywayName(String pid) {
+		String configPid;
+
+		for(FlywayManagedConfiguration flywayConf: configurations.values()) {
+			configPid = flywayConf.get(Constants.SERVICE_PID);
+			if(configPid.equals(pid)) {
+				return flywayConf.getName();
+			}
+		}
+
+		throw new FlywayException("Could not find configuration for pid '" + pid + "'");
+	}
+
+	/**
 	 * Filter Flyway and OSGI specific configuration from the JDBC properties.
 	 * Specifically the <code>service.factoryPid</code> property and all
-	 * properties prefixed with {@value #FLYWAY_PROPERTY_PREFIX} and are
+	 * properties prefixed with {@value Flyway#FLYWAY_PROPERTY_PREFIX} and are
 	 * removed.
 	 *
 	 * @return a new Properties instance containing only JDBC configuration
 	 *         properties.
 	 */
-	protected Properties getJdbcProperties(Properties config) {
+	public Properties getJdbcProperties(Properties config) {
 		Properties properties = new Properties();
 		Enumeration<Object> keys = config.keys();
 		String key;
 		while(keys.hasMoreElements()) {
 			key = (String) keys.nextElement();
-			if(!key.startsWith(FLYWAY_PROPERTY_PREFIX)) {
-				properties.setProperty(key, (String) config.get(key));
+			// filter all Flyway properties
+			if(!key.startsWith(Flyway.FLYWAY_PROPERTY_PREFIX)) {
+				properties.setProperty(key, config.getProperty(key));
 			}
 		}
 
 		// remove OSGI specific properties added by ConfigurationAdmin when
 		// persisting defaults
-		properties.remove("service.factoryPid");
+		properties.remove(ConfigurationAdmin.SERVICE_FACTORYPID);
+		properties.remove(Constants.SERVICE_PID);
+		properties.remove(FlywayManagedConfiguration.FELIX_FILEINSTALL_FILENAME_PROPERTY);
 
 		return properties;
-	}
-
-	private String getFlywayName(String pid) {
-		return pid.substring(pid.lastIndexOf(".") + 1);
-	}
-
-	private String getFlywayPID(String name) {
-		return FLYWAY_FACTORY_PID + "." + name;
 	}
 
 }

@@ -47,7 +47,8 @@ public class FlywayBundleActivator implements BundleActivator {
 	public void start(BundleContext context) throws Exception {
 
 		Properties factoryProperties = new Properties();
-		factoryProperties.put(Constants.SERVICE_PID, FlywayConfigurationFactory.FLYWAY_FACTORY_PID);
+		factoryProperties.put(Constants.SERVICE_PID,
+				FlywayConfigurationFactory.FLYWAY_FACTORY_PID);
 
 		FlywayConfigurationFactory configurationFactory = isJdbcCompendiumService(context)
 				? new FlywayCompendiumConfigurationFactory(context)

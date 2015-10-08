@@ -34,9 +34,9 @@ import org.osgi.framework.Bundle;
 public class BundleScanner implements Scanner {
 
 	private static final Log LOG = LogFactory.getLog(BundleScanner.class);
-	
+
 	private final Bundle bundle;
-	
+
 	public BundleScanner(Bundle bundle) {
 		this.bundle = bundle;
 	}
@@ -45,16 +45,18 @@ public class BundleScanner implements Scanner {
 	public Resource[] scanForResources(Location location, String prefix, String suffix) {
         Set<Resource> resourceNames = new TreeSet<Resource>();
 
+        String filePattern = trimToEmpty(prefix) + "*" + trimToEmpty(suffix);
+
         @SuppressWarnings({"unchecked"})
-        Enumeration<URL> entries = bundle.findEntries(location.getPath(), "*", true);
+        Enumeration<URL> entries = bundle.findEntries(location.getPath(), filePattern, true);
 
         if (entries != null) {
             while (entries.hasMoreElements()) {
                 URL entry = entries.nextElement();
-                
+
 		        String path = entry.getPath();
-                final String resourceName = path.startsWith("/") 
-                		? path.substring(1) 
+                final String resourceName = path.startsWith("/")
+                		? path.substring(1)
                 		: path;
 
                 resourceNames.add(new BundleResource(bundle, resourceName));
@@ -94,9 +96,16 @@ public class BundleScanner implements Scanner {
             LOG.debug("Found class: " + className);
         }
 
-        return classes.toArray(new Class<?>[classes.size()]);		
+        return classes.toArray(new Class<?>[classes.size()]);
 	}
-	
+
+    @Override
+    public Class<?> loadClass(String name) throws ClassNotFoundException {
+    	return bundle.loadClass(name);
+    }
+
+    // -- BundleScanner
+
     /**
      * Converts this resource name to a fully qualified class name.
      *
@@ -104,12 +113,12 @@ public class BundleScanner implements Scanner {
      * @return The class name.
      */
     private String toClassName(String resourceName) {
-        String nameWithDots = resourceName.replace("/", ".");
-        return nameWithDots.substring(0, (nameWithDots.length() - ".class".length()));
+    	String nameWithDots = resourceName.replace("/", ".");
+    	return nameWithDots.substring(0, (nameWithDots.length() - ".class".length()));
     }
-    
-    @Override
-    public Class<?> loadClass(String name) throws ClassNotFoundException {
-    	return bundle.loadClass(name);
+
+    public String trimToEmpty(String value) {
+    	return value == null ? "" : value.trim();
     }
+
 }
