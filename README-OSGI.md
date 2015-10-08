@@ -26,11 +26,11 @@ The Flyway Extender is a server that will scan all bundles added to the OSGI con
    1. If the a Managed Service Configuration cannot be found a new Managed Service Configuration is created using the content of the found property file resource as default
    1. If a Managed Service Flyway Configuration is found it is merged with the property file resource found in the bundle; the Managed Service Flyway Configuration overrides properties found in the property file.
 1. From the merged (or default) Flyway configuration a JDBC Driver instance is created using the OSGI Compendium JDBC Service
-   1. If no driver can be found an attempt to load the driver using the Bundle's class loader is made
+1. Flyway loads the JDBC driver using the Bundle's classloader. If the OSGI Compendium JDBC Service is available it used in preference to the Bundle's classloader.
 1. The driver is configured with all configuration properties fromt the merged Flyway configuration that are not prefixed with `flyway.`
 1. The driver is used to create an instance of Flyway's default `DriverDataSource`
-1. A `Flyway` instance is created and configured with the merged configuration where the driver specific properties have been removed (driver, url, user and password)
-1. Migration is done using the Flyway instance
+1. A `Flyway` instance is created and configured with the merged configuration
+1. Migration is done using the Flyway instance that will scann the bundle for migrations
 
 ## Managed Service Flyway Configurations
 As all resource files in the bundles represent static and default Flyway configurations the an OSGI Managed Service Factory is used to provide environment specific runtime configurations for Flyway. Typically such configurations would contain at least the JDBC URL, username and password.
@@ -38,7 +38,7 @@ As all resource files in the bundles represent static and default Flyway configu
 Managed Service configurations use the factory pid `org.flywaydb.datasource` and individual configurations can thus be defined in the configuration files on the form
 
 ````
-org.flywaydb.datasource.<name>.cfg
+org.flywaydb.core-<name>.cfg
 ````
 
 # Example
@@ -62,7 +62,7 @@ flyway.locations = META-INF/flyway/db/migration
 ````
 The Flyway Managed Service Configuration for the AuthzDB is found in
 ````
-${etc}/com.flywaydb.datasource.authzdb.cfg
+${etc}/com.flywaydb.core-authzdb.cfg
 ````
 ... and it overrides the JDBC url and password:
 ````
