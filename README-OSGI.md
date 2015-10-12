@@ -3,15 +3,15 @@ There are currently two ways to integrate Flyway with your OSGI application:
 * Making your bundle a Flyway fragment
 * Using the Flyway OSGI Extender
 
-In the future it could also be be possible integrate Flyway
-
-* Using a Flyway Blueprint Extension
-
 # Flyway Fragment
-Although people have managed to make Flyway to work by making the bundle a Flyway fragment of the Flyway fragment host, this way of integrating Flyway may cause a considerable headache when resolving various class loader issues. This way of integrating is deprecated in favour of using the Flyway Extender.
+By making the your bundle a fragment of the `org.flywaydb.core` package Flyway will share the classoader of the fragment and thus gain access to resources contained in your bundle. This means that Flyway's default classpath scanning mechanism can find your Flyway migration scripts and classes.
+
+Fragments do not follow the normal bundle lifecycle and may not be started using an `Bundle-Activator`. This means that Flyway migration scripts and service implementations need to reside in separate bundles.
+
+Although fragments can be made to work using the extender pattern is probably easier and offers a OSGI friendly approach to using Flyway.
 
 # Flyway Extender
-The Flyway Extender is a server that will scan all bundles added to the OSGI container for Flyway configurations. When a Flyway configuration is found it is matched with a Managed Service Factory configuration and the migration is executed.
+The Flyway Extender is a service that will scan all bundles added to the OSGI container for Flyway configurations. When a Flyway configuration is found it is matched with a Managed Service Factory configuration and the migration is executed.
 
 ## Usecase
 1. The `flyway-core` bundle is installed and started in the OSGI container
