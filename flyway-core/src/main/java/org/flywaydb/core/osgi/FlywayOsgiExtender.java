@@ -15,9 +15,7 @@
  */
 package org.flywaydb.core.osgi;
 
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
 
 import org.flywaydb.core.Flyway;
@@ -32,10 +30,10 @@ public class FlywayOsgiExtender implements BundleTrackerCustomizer {
 
 	private static final Log LOG = LogFactory.getLog(FlywayOsgiExtender.class);
 
-	private final FlywayFactory factory;
+	private final FlywayBundleService bundleService;
 
-	public FlywayOsgiExtender(FlywayFactory factory) {
-		this.factory = factory;
+	public FlywayOsgiExtender(FlywayBundleService bundleService) {
+		this.bundleService = bundleService;
 	}
 
 	// -- BundleTrackerCustomizer
@@ -105,29 +103,14 @@ public class FlywayOsgiExtender implements BundleTrackerCustomizer {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private List<String> migrate(Bundle bundle) {
 
 		List<String> configurations = new ArrayList<String>();
-		Enumeration<URL> entries = bundle.findEntries("META-INF/flyway", "*.properties", false);
 
-		if(entries == null || !entries.hasMoreElements()) {
-			LOG.debug("No Flyway migrations found for bundle " + bundle.getBundleId());
-			return null;
-		}
-
-		FlywayBundleConfiguration config;
-		while (entries.hasMoreElements()) {
-			config = new FlywayBundleConfiguration(entries.nextElement());
-			LOG.debug("Found Flyway configuration '" + config.getName()
-				+ "' for URL '" + config.getUrl() + "'");
+		for (FlywayBundleConfiguration config : bundleService.scan(bundle)) {
 			String configuration = migrate(bundle, config);
 			configurations.add(configuration);
 		}
-
-		LOG.debug("Found " + configurations.size()
-				+ " Flyway migrations found for bundle "
-				+ bundle.getBundleId());
 
 		return configurations;
 	}
@@ -141,7 +124,7 @@ public class FlywayOsgiExtender implements BundleTrackerCustomizer {
 	 */
 	private String migrate(Bundle bundle, FlywayBundleConfiguration config) {
 
-		Flyway flyway = factory.create(bundle, config);
+		Flyway flyway = bundleService.create(bundle, config);
 
 		LOG.debug("Migrating '" + config.getName() + "'");
 		flyway.migrate();

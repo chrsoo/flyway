@@ -27,7 +27,7 @@ import org.osgi.service.cm.ManagedServiceFactory;
 /**
  * Flyway configuration managed by a {@link ManagedServiceFactory}.
  */
-public class FlywayManagedConfiguration {
+public class FlywayConfiguration {
 
 	/**
 	 * The name associated with the bundle configuration
@@ -43,7 +43,7 @@ public class FlywayManagedConfiguration {
 	private final Properties properties;
 	private final String name;
 
-	public FlywayManagedConfiguration(Dictionary<?,?> config) {
+	public FlywayConfiguration(Dictionary<?,?> config) {
 
 		if (config instanceof Properties) {
 			this.properties = (Properties) config;

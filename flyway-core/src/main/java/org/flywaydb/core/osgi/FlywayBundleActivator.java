@@ -30,7 +30,8 @@ import org.osgi.util.tracker.BundleTrackerCustomizer;
 /**
  * Starts the following Flyway services
  * <ul>
- * <li>FlywayManagedServiceFactory with the PID {@value FlywayConfigurationFactory#FLYWAY_FACTORY_PID}
+ * <li>FlywayManagedServiceFactory with the PID
+ * {@value FlywayConfigurationManagedServiceFactory#FLYWAY_FACTORY_PID}
  * <li>BundleTracker for tracking Flyway Migrations
  * </ul>
  *
@@ -46,22 +47,62 @@ public class FlywayBundleActivator implements BundleActivator {
 	@Override
 	public void start(BundleContext context) throws Exception {
 
-		Properties factoryProperties = new Properties();
-		factoryProperties.put(Constants.SERVICE_PID,
-				FlywayConfigurationFactory.FLYWAY_FACTORY_PID);
+		// Register the ManagedServiceFactory
+		FlywayConfigurationService configService = registerManagedService(
+				context);
 
-		FlywayConfigurationFactory configurationFactory = isJdbcCompendiumService(context)
-				? new FlywayCompendiumConfigurationFactory(context)
-				: new FlywayConfigurationFactory(context);
+		// Register the FlywayBundleService
+		FlywayBundleService bundleService = registerBundleService(context,
+				configService);
 
-		context.registerService(ManagedServiceFactory.class.getName(), configurationFactory, factoryProperties);
-		LOG.info("Registered FlywayConfigurationFactory ManagedServiceFactory instance");
 
-		BundleTrackerCustomizer customizer = new FlywayOsgiExtender(configurationFactory);
+		// Register the FlywayOsgiExtender
+		registerOsgiExtender(context, bundleService);
+
+	}
+
+	private void registerOsgiExtender(BundleContext context,
+			FlywayBundleService bundleService) {
+
+		BundleTrackerCustomizer customizer = new FlywayOsgiExtender(
+				bundleService);
+
 		tracker = new BundleTracker(context, Bundle.STARTING, customizer);
 		tracker.open();
-		LOG.info("Registered FlywayOsgiExtender BundleTracker instance");
 
+		LOG.info("Registered FlywayOsgiExtender BundleTracker");
+	}
+
+	private FlywayConfigurationManagedServiceFactory registerManagedService(
+			BundleContext context) {
+		FlywayConfigurationManagedServiceFactory configurationFactory = new FlywayConfigurationManagedServiceFactory(
+				context);
+
+		Properties factoryProperties = new Properties();
+		factoryProperties.put(Constants.SERVICE_PID,
+				FlywayConfigurationManagedServiceFactory.FLYWAY_FACTORY_PID);
+
+		context.registerService(ManagedServiceFactory.class.getName(), configurationFactory, factoryProperties);
+		LOG.info("Registered the FlywayConfiguration ManagedServiceFactory");
+		return configurationFactory;
+	}
+
+	private FlywayBundleService registerBundleService(BundleContext context,
+			FlywayConfigurationService configService) {
+
+		// Avoid the ClassNotFoundException if Compendium Services are not
+		// available
+		DataSourceFactoryStrategy dataSourceFactory = isJdbcCompendiumService(context)
+				? new CompendiumServiceDataSourceFactory(context)
+				: new BundleClassLoaderDataSourceFactory();
+
+		FlywayBundleService bundleService = new FlywayBundleServiceBean(
+				dataSourceFactory, configService);
+
+		context.registerService(FlywayBundleService.class.getName(),
+				bundleService, new Properties());
+		LOG.info("Registered the FlywayBundleService ManagedServiceFactory");
+		return bundleService;
 	}
 
 	@Override

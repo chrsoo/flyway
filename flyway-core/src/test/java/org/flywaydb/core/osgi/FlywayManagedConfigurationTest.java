@@ -30,9 +30,9 @@ public class FlywayManagedConfigurationTest {
 	@Test
 	public void test() {
 		Properties props = new Properties();
-		props.put(FlywayManagedConfiguration.FELIX_FILEINSTALL_FILENAME_PROPERTY,
+		props.put(FlywayConfiguration.FELIX_FILEINSTALL_FILENAME_PROPERTY,
 				"file:/D:/apache-servicemix-5.1.4/etc/org.flywaydb.core-authzdb.cfg");
-		FlywayManagedConfiguration flywayConf = new FlywayManagedConfiguration(props);
+		FlywayConfiguration flywayConf = new FlywayConfiguration(props);
 		assertEquals("authzdb", flywayConf.getName());
 	}
 
