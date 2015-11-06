@@ -15,6 +15,7 @@
  */
 package org.flywaydb.core.osgi;
 
+import java.util.Dictionary;
 import java.util.Properties;
 
 import org.flywaydb.core.internal.util.logging.Log;
@@ -82,11 +83,13 @@ public class FlywayBundleActivator implements BundleActivator {
 		factoryProperties.put(Constants.SERVICE_PID,
 				FlywayConfigurationManagedServiceFactory.FLYWAY_FACTORY_PID);
 
-		context.registerService(ManagedServiceFactory.class.getName(), configurationFactory, factoryProperties);
+		context.registerService(ManagedServiceFactory.class.getName(),
+				configurationFactory, (Dictionary) factoryProperties);
 		LOG.info("Registered the FlywayConfiguration ManagedServiceFactory");
 		return configurationFactory;
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private FlywayBundleService registerBundleService(BundleContext context,
 			FlywayConfigurationService configService) {
 
@@ -100,7 +103,7 @@ public class FlywayBundleActivator implements BundleActivator {
 				dataSourceFactory, configService);
 
 		context.registerService(FlywayBundleService.class.getName(),
-				bundleService, new Properties());
+				bundleService, (Dictionary) new Properties());
 		LOG.info("Registered the FlywayBundleService ManagedServiceFactory");
 		return bundleService;
 	}

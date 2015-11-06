@@ -151,11 +151,6 @@
 			<groupId>org.osgi</groupId>
 			<artifactId>org.osgi.compendium</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.karaf.shell</groupId>
-			<artifactId>org.apache.karaf.shell.console</artifactId>
-			<version>2.2.11</version>
-		</dependency>
     </dependencies>
 
     <build>
@@ -186,45 +181,6 @@
                                 </resource>
                             </resources>
                             <outputDirectory>${project.build.outputDirectory}/META-INF</outputDirectory>
-                        </configuration>
-                    </execution>
-					<execution>
-						<id>copy-features</id>
-						<phase>generate-resources</phase>
-						<goals>
-							<goal>copy-resources</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>target/features</outputDirectory>
-							<filtering>true</filtering>
-							<resources>
-								<resource>
-									<directory>src/main/features</directory>
-									<filtering>true</filtering>
-								</resource>
-							</resources>
-						</configuration>
-					</execution>
-                </executions>
-            </plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>attach-artifacts</id>
-						<phase>package</phase>
-						<goals>
-							<goal>attach-artifact</goal>
-						</goals>
-						<configuration>
-							<artifacts>
-								<artifact>
-									<file>target/features/features.xml</file>
-									<type>xml</type>
-									<classifier>features</classifier>
-								</artifact>
-							</artifacts>
 						</configuration>
 					</execution>
 				</executions>
@@ -252,14 +208,9 @@
                             org.apache.commons.logging;version="[1.1,2)";resolution:=optional,
                             org.slf4j;version="[1.6,2)";resolution:=optional,
                             org.osgi.framework;version="[1.4,7.0)";resolution:=mandatory,
-                            org.osgi.service.jdbc;version="[1.0,2)";resolution:=optional,
                             javax.sql,
-							org.apache.felix.service.command,
-							org.apache.felix.gogo.commands,
-							org.apache.karaf.shell.console,
                             *
                         </Import-Package>
-                        <Bundle-Activator>org.flywaydb.core.osgi.FlywayBundleActivator</Bundle-Activator>
                     </instructions>
                 </configuration>
                 <executions>
@@ -340,21 +291,21 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <dependencies>
-<!--                 <dependency> -->
-<!--                     <groupId>com.microsoft.sqlserver</groupId> -->
-<!--                     <artifactId>sqljdbc4</artifactId> -->
-<!--                     <scope>test</scope> -->
-<!--                 </dependency> -->
-<!--                 <dependency> -->
-<!--                     <groupId>com.oracle</groupId> -->
-<!--                     <artifactId>ojdbc6</artifactId> -->
-<!--                     <scope>test</scope> -->
-<!--                 </dependency> -->
-<!--                 <dependency> -->
-<!--                     <groupId>com.ibm.db2</groupId> -->
-<!--                     <artifactId>db2jcc4</artifactId> -->
-<!--                     <scope>test</scope> -->
-<!--                 </dependency> -->
+                <dependency>
+                    <groupId>com.microsoft.sqlserver</groupId>
+                    <artifactId>sqljdbc4</artifactId>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>com.oracle</groupId>
+                    <artifactId>ojdbc6</artifactId>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>com.ibm.db2</groupId>
+                    <artifactId>db2jcc4</artifactId>
+                    <scope>test</scope>
+                </dependency>
             </dependencies>
             <build>
                 <plugins>

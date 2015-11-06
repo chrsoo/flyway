@@ -70,6 +70,7 @@
         <module>flyway-ant-largetest</module>
         <module>flyway-sbt</module>
         <module>flyway-sbt-largetest</module>
+        <module>flyway-osgi</module>
     </modules>
 
     <distributionManagement>
@@ -111,6 +112,7 @@
         <version.equinox>3.6.0.v20100517</version.equinox>
         <version.equinoxcommon>3.6.0.v20100503</version.equinoxcommon>
         <version.osgi>4.3.0</version.osgi>
+        <version.karaf>2.2.11</version.karaf>
         <version.android>4.0.1.2</version.android>
         <version.slf4j>1.6.6</version.slf4j>
         <version.jre>8.31</version.jre>
@@ -185,6 +187,12 @@
             	<scope>provided</scope>
                 <optional>true</optional>
             </dependency>
+			<dependency>
+				<groupId>org.apache.karaf.shell</groupId>
+				<artifactId>org.apache.karaf.shell.console</artifactId>
+            	<scope>provided</scope>
+				<version>${version.karaf}</version>
+			</dependency>
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
