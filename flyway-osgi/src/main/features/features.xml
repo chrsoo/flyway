@@ -19,7 +19,7 @@
 <features name="flyway/${project.version}">
 
 	<feature name='flyway' version='${project.version}'>
-		<bundle start='true'>mvn:org.flywaydb/flyway-core/${project.version}</bundle>
+		<bundle start='true'>mvn:org.flywaydb/flyway-osgi/${project.version}</bundle>
 	</feature>
 
 </features>
