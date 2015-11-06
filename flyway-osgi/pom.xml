@@ -10,7 +10,7 @@
 
 	<artifactId>flyway-osgi</artifactId>
 
-	<name>Flyway OSGI Extender</name>
+	<name>${project.artifactId}</name>
 	<description>Scans and applies Flyway migrations in OSGI Bundles</description>
 
 	<build>
