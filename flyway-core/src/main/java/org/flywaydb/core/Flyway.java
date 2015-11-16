@@ -261,7 +261,7 @@ public class Flyway {
      */
     private ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
-    private Scanner scanner = new DefaultScanner(getClass().getClassLoader());
+    private Scanner scanner = new DefaultScanner(classLoader);
 
     /**
      * Whether the database connection info has already been printed in the logs.
@@ -573,7 +573,7 @@ public class Flyway {
      * @return The ClassLoader used for resolvning JDBC drivers by class name and by the DefaultScanner
      * to retrieve migrations
      */
-    public ClassLoader getClassLoader() throws IllegalStateException {
+    public ClassLoader getClassLoader() {
     	return classLoader;
     }
 
