@@ -62,7 +62,9 @@ public class FlywayInfoCommand extends FlywayKarafCommandSupport {
 					"The scope '" + scope + "' is not handled!");
 		}
 
-		return "\n" + MigrationInfoDumper.dumpToAsciiTable(info);
+		return info == null
+				? "\n" + MigrationInfoDumper.dumpToAsciiTable(info)
+				: "\nMigration info not found!";
 	}
 
 }
