@@ -57,6 +57,7 @@ public class OracleSchema extends Schema<OracleDbSupport> {
     protected void doCreate() throws SQLException {
         jdbcTemplate.execute("CREATE USER " + dbSupport.quote(name) + " IDENTIFIED BY flyway");
         jdbcTemplate.execute("GRANT RESOURCE TO " + dbSupport.quote(name));
+        jdbcTemplate.execute("GRANT UNLIMITED TABLESPACE TO " + dbSupport.quote(name));
     }
 
     @Override
@@ -70,16 +71,21 @@ public class OracleSchema extends Schema<OracleDbSupport> {
             throw new FlywayException("Clean not supported on Oracle for user 'SYSTEM'! You should NEVER add your own objects to the SYSTEM schema!");
         }
 
-        jdbcTemplate.execute("PURGE RECYCLEBIN");
-
         for (String statement : generateDropStatementsForSpatialExtensions()) {
             jdbcTemplate.execute(statement);
         }
 
         for (String statement : generateDropStatementsForQueueTables()) {
-            //for dropping queue tables, a special grant is required:
-            //GRANT EXECUTE ON DBMS_AQADM TO flyway;
-            jdbcTemplate.execute(statement);
+            try {
+                jdbcTemplate.execute(statement);
+            } catch (SQLException e) {
+                if (e.getErrorCode() == 65040) {
+                    //for dropping queue tables, a special grant is required:
+                    //GRANT EXECUTE ON DBMS_AQADM TO flyway;
+                    LOG.error("Missing required grant to clean queue tables: GRANT EXECUTE ON DBMS_AQADM");
+                }
+                throw e;
+            }
         }
 
         if (flashbackAvailable()) {
@@ -141,6 +147,8 @@ public class OracleSchema extends Schema<OracleDbSupport> {
         for (String statement : generateDropStatementsForObjectType("JAVA SOURCE", "")) {
             jdbcTemplate.execute(statement);
         }
+
+        jdbcTemplate.execute("PURGE RECYCLEBIN");
     }
 
     /**
@@ -228,7 +236,9 @@ public class OracleSchema extends Schema<OracleDbSupport> {
     private List<String> generateDropStatementsForObjectType(String objectType, String extraArguments) throws SQLException {
         String query = "SELECT object_name FROM all_objects WHERE object_type = ? AND owner = ?"
                 // Ignore Spatial Index Sequences as they get dropped automatically when the index gets dropped.
-                + " AND object_name NOT LIKE 'MDRS_%$'";
+                + " AND object_name NOT LIKE 'MDRS_%$'"
+                // Ignore Oracle 12 Identity Sequences as they get dropped automatically when the recycle bin gets purged.
+                + " AND object_name NOT LIKE 'ISEQ$$_%'";
 
         List<String> objectNames = jdbcTemplate.queryForStringList(query, objectType, name);
         List<String> dropStatements = new ArrayList<String>();
@@ -251,7 +261,7 @@ public class OracleSchema extends Schema<OracleDbSupport> {
             LOG.debug("Oracle Spatial Extensions are not available. No cleaning of MDSYS tables and views.");
             return statements;
         }
-        if (!dbSupport.getCurrentSchema().getName().equalsIgnoreCase(name)) {
+        if (!dbSupport.getCurrentSchemaName().equalsIgnoreCase(name)) {
             int count = jdbcTemplate.queryForInt("SELECT COUNT (*) FROM all_sdo_geom_metadata WHERE owner=?", name);
             count += jdbcTemplate.queryForInt("SELECT COUNT (*) FROM all_sdo_index_info WHERE sdo_index_owner=?", name);
             if (count > 0) {

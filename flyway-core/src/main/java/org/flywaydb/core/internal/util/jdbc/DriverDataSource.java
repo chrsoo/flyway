@@ -82,9 +82,14 @@ public class DriverDataSource implements DataSource {
     private boolean singleConnectionMode;
 
     /**
-     * The Single Connection for single connection mode.
+     * The original Single Connection for single connection mode.
      */
-    private Connection singleConnection;
+    private Connection originalSingleConnection;
+
+    /**
+     * The Single Connection for single connection mode, adjusted to make it suppress close()..
+     */
+    private Connection uncloseableSingleConnection;
 
     /**
      * Creates a new DriverDataSource.
@@ -384,8 +389,8 @@ public class DriverDataSource implements DataSource {
      * @see java.sql.Driver#connect(String, java.util.Properties)
      */
     protected Connection getConnectionFromDriver(String username, String password) throws SQLException {
-        if (singleConnectionMode && (singleConnection != null)) {
-            return singleConnection;
+        if (singleConnectionMode && (uncloseableSingleConnection != null)) {
+            return uncloseableSingleConnection;
         }
 
         Properties props = new Properties(this.connectionProps);
@@ -414,10 +419,11 @@ public class DriverDataSource implements DataSource {
         }
 
         if (singleConnectionMode) {
-            InvocationHandler suppressCloseHandler = new SuppressCloseHandler(connection);
-            singleConnection =
+            originalSingleConnection = connection;
+            InvocationHandler suppressCloseHandler = new SuppressCloseHandler(originalSingleConnection);
+            uncloseableSingleConnection =
                     (Connection) Proxy.newProxyInstance(classLoader, new Class[]{Connection.class}, suppressCloseHandler);
-            return singleConnection;
+            return uncloseableSingleConnection;
         }
 
         return connection;
@@ -478,7 +484,8 @@ public class DriverDataSource implements DataSource {
      * Closes this datasource.
      */
     public void close() {
-        JdbcUtils.closeConnection(singleConnection);
-        singleConnection = null;
+        uncloseableSingleConnection = null;
+        JdbcUtils.closeConnection(originalSingleConnection);
+        originalSingleConnection = null;
     }
 }

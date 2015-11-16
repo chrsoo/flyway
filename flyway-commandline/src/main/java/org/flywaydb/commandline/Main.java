@@ -69,6 +69,9 @@ public class Main {
 
         try {
             printVersion();
+            if (isPrintVersionAndExit(args)) {
+                System.exit(0);
+            }
 
             List<String> operations = determineOperations(args);
             if (operations.isEmpty()) {
@@ -84,7 +87,6 @@ public class Main {
             dumpConfiguration(properties);
 
             loadJdbcDrivers();
-            loadJavaMigrationsFromJarDir(properties);
             loadJavaMigrationsFromJarDirs(properties);
 
             Flyway flyway = new Flyway();
@@ -107,6 +109,15 @@ public class Main {
         }
     }
 
+    private static boolean isPrintVersionAndExit(String[] args) {
+        for (String arg : args) {
+            if ("-v".equals(arg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Executes this operation on this Flyway instance.
      *
@@ -117,9 +128,6 @@ public class Main {
         if ("clean".equals(operation)) {
             flyway.clean();
         } else if ("baseline".equals(operation)) {
-            flyway.baseline();
-        } else if ("init".equals(operation)) {
-            LOG.warn("init is deprecated. Use baseline instead. Will be removed in Flyway 4.0.");
             flyway.baseline();
         } else if ("migrate".equals(operation)) {
             flyway.migrate();
@@ -170,17 +178,19 @@ public class Main {
      * @throws IOException when the version could not be read.
      */
     private static void printVersion() throws IOException {
-        VersionPrinter.printVersion(Thread.currentThread().getContextClassLoader());
+        VersionPrinter.printVersion();
         LOG.info("");
+
+        LOG.debug("Java " + System.getProperty("java.version") + " (" + System.getProperty("java.vendor") + ")");
+        LOG.debug(System.getProperty("os.name") + " " + System.getProperty("os.version") + " " + System.getProperty("os.arch") + "\n");
     }
 
     /**
      * Prints the usage instructions on the console.
      */
     private static void printUsage() {
-        LOG.info("********");
-        LOG.info("* Usage");
-        LOG.info("********");
+        LOG.info("Usage");
+        LOG.info("=====");
         LOG.info("");
         LOG.info("flyway [options] command");
         LOG.info("");
@@ -188,7 +198,7 @@ public class Main {
         LOG.info("Options passed from the command-line override the configuration.");
         LOG.info("");
         LOG.info("Commands");
-        LOG.info("========");
+        LOG.info("--------");
         LOG.info("migrate  : Migrates the database");
         LOG.info("clean    : Drops all objects in the configured schemas");
         LOG.info("info     : Prints the information about applied, current and pending migrations");
@@ -197,7 +207,7 @@ public class Main {
         LOG.info("repair   : Repairs the metadata table");
         LOG.info("");
         LOG.info("Options (Format: -key=value)");
-        LOG.info("=======");
+        LOG.info("-------");
         LOG.info("driver                 : Fully qualified classname of the jdbc driver");
         LOG.info("url                    : Jdbc url to use to connect to the database");
         LOG.info("user                   : User to use to connect to the database");
@@ -228,10 +238,11 @@ public class Main {
         LOG.info("");
         LOG.info("Add -X to print debug output");
         LOG.info("Add -q to suppress all output, except for errors and warnings");
+        LOG.info("Add -v to print the Flyway version and exit");
         LOG.info("");
         LOG.info("Example");
-        LOG.info("=======");
-        LOG.info("flyway -target=1.5 -placeholders.user=my_user info");
+        LOG.info("-------");
+        LOG.info("flyway -user=myuser -password=s3cr3t -url=jdbc:h2:mem -placeholders.abc=def migrate");
         LOG.info("");
         LOG.info("More info at http://flywaydb.org/documentation/commandline");
     }
@@ -252,37 +263,6 @@ public class Main {
         // see javadoc of listFiles(): null if given path is not a real directory
         if (files == null) {
             LOG.error("Directory for Jdbc Drivers not found: " + driversDir.getAbsolutePath());
-            System.exit(1);
-        }
-
-        for (File file : files) {
-            addJarOrDirectoryToClasspath(file.getPath());
-        }
-    }
-
-    /**
-     * Loads all the jars contained in the jars folder. (For Java Migrations)
-     *
-     * @param properties The configured properties.
-     * @throws IOException When the jars could not be loaded.
-     */
-    private static void loadJavaMigrationsFromJarDir(Properties properties) throws IOException {
-        String jarDir = properties.getProperty("flyway.jarDir");
-        if (!StringUtils.hasLength(jarDir)) {
-            return;
-        }
-        LOG.warn("flyway.jarDir is deprecated and will be removed in Flyway 4.0. Use flyway.jarDirs instead.");
-
-        File dir = new File(jarDir);
-        File[] files = dir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.endsWith(".jar");
-            }
-        });
-
-        // see javadoc of listFiles(): null if given path is not a real directory
-        if (files == null) {
-            LOG.error("Directory for Java Migrations not found: " + jarDir);
             System.exit(1);
         }
 
@@ -357,9 +337,6 @@ public class Main {
     static void loadConfiguration(Properties properties, String[] args) {
         String encoding = determineConfigurationFileEncoding(args);
 
-        if (loadConfigurationFile(properties, getInstallationDir() + "/conf/flyway.properties", encoding, false)) {
-            LOG.warn("conf/flyway.properties usage is deprecated and will be removed in Flyway 4.0. Use conf/flyway.conf instead.");
-        }
         loadConfigurationFile(properties, getInstallationDir() + "/conf/flyway.conf", encoding, false);
         loadConfigurationFile(properties, System.getProperty("user.home") + "/flyway.conf", encoding, false);
         loadConfigurationFile(properties, "flyway.conf", encoding, false);

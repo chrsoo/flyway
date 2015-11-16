@@ -70,7 +70,8 @@ public class SqlMigrationResolverSmallTest {
                 new SqlMigrationResolver(null, scanner, new Location(""),
                         PlaceholderReplacer.NO_PLACEHOLDERS, "UTF-8", "CheckValidate", "__", ".sql");
 
-        assertEquals(1, sqlMigrationResolver.resolveMigrations().size());
+        //changed to 2 as new test cases are added for SybaseASE
+        assertEquals(2, sqlMigrationResolver.resolveMigrations().size());
     }
 
     @Test(expected = FlywayException.class)

@@ -14,7 +14,11 @@
 -- limitations under the License.
 --
 
+-- CHANGE IN COMMENT
+
 CREATE TABLE test_user (
-  name VARCHAR(25) NOT NULL,
+  id INT NOT NULL,
+  name VARCHAR(25) NOT NULL,  -- this is a valid comment
   PRIMARY KEY(name)
-);
+)
+go
