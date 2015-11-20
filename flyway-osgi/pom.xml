@@ -35,7 +35,7 @@
 							org.apache.karaf.shell.console;resolution:=optional,
                             *;resolution:=optional
                         </Import-Package>
-                        <Bundle-Activator>org.flywaydb.core.osgi.FlywayBundleActivator</Bundle-Activator>
+                        <Bundle-Activator>org.flywaydb.osgi.FlywayBundleActivator</Bundle-Activator>
                         <Embed-Dependency>
                         	groupId=org.flywaydb;artifactId=core,
                         	*;scope=compile|runtime;inline=false;artifactId=!slf4j-api|commons-logging|spring-jdbc|jboss-vfs|android|postgresql|org.osgi.core|org.osgi.compendium|org.apache.karaf.shell.console</Embed-Dependency>
@@ -127,6 +127,18 @@
     	<dependency>
 			<groupId>org.osgi</groupId>
 			<artifactId>org.osgi.compendium</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.aries.blueprint</groupId>
+			<artifactId>org.apache.aries.blueprint.api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.aries.blueprint</groupId>
+			<artifactId>blueprint-parser</artifactId>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>

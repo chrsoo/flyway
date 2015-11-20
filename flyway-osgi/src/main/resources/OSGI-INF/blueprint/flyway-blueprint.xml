@@ -28,60 +28,59 @@
 
     <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.0.0">
         <command name="flyway/migrate">
-            <action class="org.flywaydb.core.osgi.karaf.FlywayMigrateCommand" />
+            <action class="org.flywaydb.osgi.command.FlywayMigrateCommand" />
             <completers>
                 <ref component-id="migrationCompleter"/>
-                <null/>
             </completers>
         </command>
     </command-bundle>
 
     <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.0.0">
         <command name="flyway/clean">
-            <action class="org.flywaydb.core.osgi.karaf.FlywayCleanCommand" />
+            <action class="org.flywaydb.osgi.command.FlywayCleanCommand" />
             <completers>
                 <ref component-id="migrationCompleter"/>
-                <null/>
             </completers>
         </command>
     </command-bundle>
 
     <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.0.0">
         <command name="flyway/info">
-            <action class="org.flywaydb.core.osgi.karaf.FlywayInfoCommand" />
+            <action class="org.flywaydb.osgi.command.FlywayInfoCommand" />
             <completers>
                 <ref component-id="migrationCompleter"/>
-                <null/>
             </completers>
         </command>
     </command-bundle>
 
     <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.0.0">
         <command name="flyway/repair">
-            <action class="org.flywaydb.core.osgi.karaf.FlywayRepairCommand" />
+            <action class="org.flywaydb.osgi.command.FlywayRepairCommand" />
             <completers>
                 <ref component-id="migrationCompleter"/>
-                <null/>
             </completers>
         </command>
     </command-bundle>
 
     <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.0.0">
         <command name="flyway/baseline">
-            <action class="org.flywaydb.core.osgi.karaf.FlywayBaselineCommand" />
+            <action class="org.flywaydb.osgi.command.FlywayBaselineCommand" />
             <completers>
                 <ref component-id="migrationCompleter"/>
-                <null/>
             </completers>
         </command>
 
     </command-bundle>
 
-    <bean id="migrationCompleter" class="org.flywaydb.core.osgi.karaf.FlywayMigrationCompleter">
-    	<property name="flywayBundleService" ref="flywayBundleService" />
-    	<property name="bundleContext" ref="blueprintBundleContext" />
-    </bean>
+    <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.0.0">
+        <command name="flyway/list">
+            <action class="org.flywaydb.osgi.command.FlywayListCommand" />
+        </command>
 
-    <reference id="flywayBundleService" interface="org.flywaydb.core.osgi.FlywayBundleService" />
+    </command-bundle>
+
+	<bean id="migrationCompleter" class="org.flywaydb.osgi.command.FlywayServiceCompleter">
+		<property name="bundleContext" ref="blueprintBundleContext" />
+	</bean>
 
 </blueprint>

@@ -310,4 +310,19 @@ public class StringUtils {
         }
         return buf.toString();
     }
+
+	/**
+	 * Trim leading and trailing whitespace and return null if the string is
+	 * empty.
+	 *
+	 * @param str the string to trim
+	 * @return the trimmed string or <code>null</code> if empty
+	 */
+	public static String trimToNull(String str) {
+		if (str == null) {
+			return null;
+		}
+		str = str.trim();
+		return str.length() == 0 ? null : str;
+	}
 }
