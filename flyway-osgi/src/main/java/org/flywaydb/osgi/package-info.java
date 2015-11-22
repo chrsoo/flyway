@@ -13,22 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@XmlAccessorType(XmlAccessType.FIELD)
+@XmlSchema(namespace = "http://flywaydb.org/xmlns/flyway-blueprint", elementFormDefault = XmlNsForm.QUALIFIED)
 package org.flywaydb.osgi;
 
-import java.util.List;
-
-public interface FlywayServiceRegistry {
-
-	void register(List<FlywayService> services);
-
-	void unregister(List<FlywayService> services);
-
-	FlywayService getService(long bundleId, String name);
-
-	List<FlywayService> list();
-
-	List<FlywayService> findByBundle(long bundleId);
-
-	List<FlywayService> findByName(String name);
-
-}
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlNsForm;
+import javax.xml.bind.annotation.XmlSchema;

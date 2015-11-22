@@ -69,15 +69,15 @@ public class FlywayBundleConfigurationExtender implements BundleTrackerCustomize
 		return services;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
+	@SuppressWarnings("unchecked")
 	public void modifiedBundle(Bundle bundle, BundleEvent event, Object object) {
 		logEventForMethod("modifiedBundle", bundle, event);
 
 		if (bundle.getState() == Bundle.STARTING) {
 			List<FlywayService> services = (List<FlywayService>) object;
 			for (FlywayService service : services) {
-				service.migrate();
+				service.init();
 			}
 		}
 

@@ -15,20 +15,15 @@
  */
 package org.flywaydb.osgi;
 
-import java.util.List;
+import javax.xml.bind.annotation.XmlEnumValue;
 
-public interface FlywayServiceRegistry {
-
-	void register(List<FlywayService> services);
-
-	void unregister(List<FlywayService> services);
-
-	FlywayService getService(long bundleId, String name);
-
-	List<FlywayService> list();
-
-	List<FlywayService> findByBundle(long bundleId);
-
-	List<FlywayService> findByName(String name);
-
+public enum FlywayAction {
+	//@formatter:off
+	@XmlEnumValue("migrate") MIGRATE,
+	@XmlEnumValue("baseline") BASELINE,
+	@XmlEnumValue("clean") CLEAN,
+	@XmlEnumValue("repair") REPAIR,
+	@XmlEnumValue("info") INFO
+	;
+	//@formatter:on
 }

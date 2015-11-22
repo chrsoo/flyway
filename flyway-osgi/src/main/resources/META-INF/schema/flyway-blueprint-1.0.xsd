@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright 2010-2015 Axel Fontaine
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+            http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<xsd:schema xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://flywaydb.org/xmlns/flyway-blueprint"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:flyway="http://flywaydb.org/xmlns/flyway-blueprint"
+	xmlns:bp="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+	elementFormDefault="qualified">
+
+	<import  namespace="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+		schemaLocation="https://osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd" />
+
+	<xsd:simpleType name="TActions">
+		<xsd:annotation>
+			<xsd:documentation>Actions provided by the Flyway Service</xsd:documentation>
+		</xsd:annotation>
+		<xsd:restriction base="string">
+			<xsd:enumeration value="migrate">
+				<xsd:annotation>
+					<xsd:documentation>
+						Migrate up to the last migration
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="baseline">
+				<xsd:annotation>
+					<xsd:documentation>
+						Baseline the database
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="clean">
+				<xsd:annotation>
+					<xsd:documentation>
+						Clean the schema, i.e. drop all tables etc and start over with a clean slate
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="repair">
+				<xsd:annotation>
+					<xsd:documentation>
+						Repair the database
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="info">
+				<xsd:annotation>
+					<xsd:documentation>
+						Dump the Migration info of the current migration to the logs
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+    <xsd:element name="service">
+    	<xsd:annotation>
+    		<xsd:documentation>
+    			Adds a FlywayService paired with an org.flywaydb.osgi ManagedServiceFactory
+    			configuration to the Blueprint container. The Flyway Service is typically
+    			used to migrate the FlywayDB configuration and as a dependency for other services
+    			depending on the migrated database.
+    		</xsd:documentation>
+    	</xsd:annotation>
+    	<xsd:complexType>
+	    	<xsd:attribute name="id" type="xsd:ID" use="required">
+	    		<xsd:annotation>
+	    			<xsd:documentation>
+	    				The Flyway Migration bean's id in the Blueprint container, required.
+	    				The id attribute is matched against Managed Services defined by the
+	    				org.flywaydb.osgi Managed Service Dactory PID. If the the id is 'mydb'
+	    				the PID becomes org.flywaydb.osgi-mydb and the associated configuration
+	    				file for Karaf/Felix would be org.flywaydb.osgi-mydb.cfg. Please
+	    				note if a datasource is given, the configuration file becomes optional.
+	    			</xsd:documentation>
+	    		</xsd:annotation>
+	    	</xsd:attribute>
+	    	<xsd:attribute name="name" type="string" use="optional">
+	    		<xsd:annotation>
+	    			<xsd:documentation>
+	    				The name of the Flyway Service's managed configuration, optional
+	    				and defaults to the value of the id attribute  The name is matched
+	    				against the org.flywaydb.osgi Managed Service Factory PID, i.e. if the
+	    				the name is 'mydb' the PID becomes org.flywaydb.osgi-mydb and the
+	    				associated configuration file for Karaf/Felix would be
+	    				org.flywaydb.osgi-mydb.cfg.
+	    			</xsd:documentation>
+	    		</xsd:annotation>
+	    	</xsd:attribute>
+	    	<xsd:attribute name="on-init" use="optional" default="migrate">
+	    		<xsd:annotation>
+	    			<xsd:documentation>
+	    				FlywayDB action(s) to perform on initialization of the Blueprint component, defaults to 'migrate'
+	    				Please note that order is relevant and that some actions should generally not
+	    				be done before other, e.g. specifying 'migrate clean' does not really make sense
+	    				but 'clean migrate' might (assuming you really want to wipe the schema clean
+	    				on each restart...)
+	    			</xsd:documentation>
+	    		</xsd:annotation>
+	    		<xsd:simpleType>
+	    			<xsd:list itemType="flyway:TActions">
+	    			</xsd:list>
+	    		</xsd:simpleType>
+	    	</xsd:attribute>
+    	</xsd:complexType>
+    </xsd:element>
+
+
+</xsd:schema>

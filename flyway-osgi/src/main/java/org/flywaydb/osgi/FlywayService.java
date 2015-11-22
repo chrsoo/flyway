@@ -52,4 +52,18 @@ public interface FlywayService {
 
 	void setDataSource(DataSource dataSource);
 
+	/**
+	 * Perform the actions configured for this Flyway instance in sequence.
+	 */
+	void init();
+
+	/**
+	 * Perform the submitted actions in sequence.
+	 *
+	 * @param actions
+	 *            array of actions, maps to the FlywayService methods!
+	 */
+	void init(FlywayAction[] actions);
+
+
 }

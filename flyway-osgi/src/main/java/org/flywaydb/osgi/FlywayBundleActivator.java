@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.aries.blueprint.NamespaceHandler;
 import org.flywaydb.core.internal.util.logging.Log;
 import org.flywaydb.core.internal.util.logging.LogFactory;
 import org.flywaydb.osgi.configuration.FlywayConfigurationService;
@@ -68,11 +69,10 @@ public class FlywayBundleActivator implements BundleActivator {
 		// Register the FlywayOsgiExtender
 		registerOsgiExtender(context, flywayServiceFactory, registry);
 
-		// // Register the Blueprint Namespace Handler
-		// FlywayNamespaceHandler handler = new FlywayNamespaceHandler(
-		// flywayServiceFactory);
-		// registerBlueprintNamespaceHandler(context, handler,
-		// FlywayNamespaceHandler.FLYWAY_NS);
+		// Register the Blueprint Namespace Handler
+		FlywayNamespaceHandler handler = new FlywayNamespaceHandler(registry);
+		registerBlueprintNamespaceHandler(context, handler,
+				FlywayNamespaceHandler.FLYWAY_NS);
 	}
 
 	@Override
@@ -165,6 +165,22 @@ public class FlywayBundleActivator implements BundleActivator {
 				+ "and ManagedServiceFactory");
 
 		return configurationFactory;
+	}
+
+	private void registerBlueprintNamespaceHandler(BundleContext context,
+			NamespaceHandler handler, String namespace) {
+
+		Properties handlerProperties = new Properties();
+		handlerProperties.put("osgi.service.blueprint.namespace", namespace);
+
+		ServiceRegistration registration = context.registerService(
+				NamespaceHandler.class.getName(),
+				handler, handlerProperties);
+
+		registrations.add(registration);
+
+		LOG.info("Handling the '" + namespace + "' namespace");
+
 	}
 
 }

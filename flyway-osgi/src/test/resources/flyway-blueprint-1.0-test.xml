@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright 2010-2015 Axel Fontaine
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+            http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:flyway="http://flywaydb.org/xmlns/flyway-blueprint"
+	xsi:schemaLocation="
+		http://www.osgi.org/xmlns/blueprint/v1.0.0
+			https://osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd
+		http://flywaydb.org/xmlns/flyway-blueprint
+			http://flywaydb.org/xmlns/flyway-blueprint">
+
+	<!-- Managed Service Factory with pid org.flywaydb.osgi-testDB1 -->
+	<flyway:service id="testDB1" />
+
+	<!-- Managed Service Factory with pid org.flywaydb.osgi-testDB2 and datasource -->
+	<flyway:service id="flywayService" name="testDB2" on-init="repair migrate info"/>
+
+</blueprint>
